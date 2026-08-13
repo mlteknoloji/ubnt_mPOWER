@@ -1,0 +1,27 @@
+# NetRelayMP — özellik uygulanabilirliği
+# Cihaz: MF.v2.1.11 · BusyBox 1.11 · nc/awk/ntpclient · cfg ~256KB
+# Overlay: 1.3.0
+
+| # | İstek | Durum | Not |
+|---|--------|--------|-----|
+| 1 | İlk açılış AP + WiFi tara/seç/bağlan | VAR | Setup + wifi.html |
+| 2 | IP / Subnet / GW / DNS | VAR | network.conf + network-apply |
+| 3 | Kullanıcı/şifre + oturum | VAR | admin/mltek · API token |
+| 17 | Fabrika reset (UI + buton 10sn) | VAR | soft: ayar siler, overlay kalır · stock sarı LED/:8080 overlay siler |
+| 4 | REST sensör / röle | VAR | status/api/action |
+| 5 | Röle + pulse/cycle | VAR | action.sh |
+| 6 | MQTT client + cmd | VAR | mqtt-client.sh |
+| 7 | Home Assistant | VAR | MQTT discovery |
+| 8 | Saat + gün doğumu/batımı | VAR | NTP / tarayıcı saat · sun.awk |
+| 9 | Haftanın günleri + görevler | VAR | schedules + scheduler |
+| 10 | Tarayıcıdan overlay update | VAR | update.sh · MQTT URL |
+| 11 | TR / EN | VAR | i18n.js |
+| 12 | Watchdog (Wi‑Fi/NTP/MQTT/httpd) | VAR | watchdog.sh |
+| 13 | Yedek / fleet clone | VAR | backup.html · clone-config.ps1 |
+| 15 | Ping fail → röle pulse/restore | VAR | ping.html · ping-watch.sh |
+| 16 | UDP yayın (5555 netRelay is here) | VAR | udp-discover · yalnızca broadcast |
+
+YAPILAMAZ / SINIRLI
+- İmzalı resmi UBNT .bin üretmek: yok
+- Stock delaystart sleep 180; early-cron (cron/pwdog) keser → hedef ~1 dk UI
+- /etc/persistent cfg boyutu küçük — overlay şişirilmemeli

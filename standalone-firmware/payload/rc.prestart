@@ -1,0 +1,8 @@
+#!/bin/sh
+# Start only the NetRelayMP web UI during the early stock boot phase. Full
+# services are still started by rc.poststart after the stock fail-safe delay.
+ROOT=/etc/persistent/mpower
+[ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" rc.prestart
+[ -x "$ROOT/bin/early-web.sh" ] && \
+  /bin/sh "$ROOT/bin/early-web.sh" >/tmp/mpower-early-web.log 2>&1 &
+exit 0

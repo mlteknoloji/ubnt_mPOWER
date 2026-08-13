@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetRelayMP — Üç prizli akıllı enerji rölesi</title>
+<meta name="description" content="NetRelayMP overlay 1.3.24: TR/EN web paneli :8088, MQTT + Home Assistant, zamanlama, priz başına ping, kurtarma AP, REST API ve filo yedekleme.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#10151c;
+  --bg2:#182029;
+  --ink:#efece6;
+  --muted:#a39e94;
+  --line:rgba(239,236,230,.12);
+  --accent:#d4894a;
+  --accent2:#5f9e8c;
+  --danger:#c45c4a;
+  --max:1120px;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:"Manrope",sans-serif;
+  color:var(--ink);
+  background:var(--bg);
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+.wrap{width:min(var(--max),calc(100% - 2.5rem));margin-inline:auto}
+
+/* HERO — one composition, brand first, full-bleed image */
+.hero{
+  position:relative;
+  min-height:100vh;
+  min-height:100dvh;
+  display:grid;
+  align-items:end;
+  overflow:hidden;
+  isolation:isolate;
+}
+.hero-media{
+  position:absolute;inset:0;z-index:-2;
+  background-color:#f4f2ee;
+  background-image:url("wfubmpower_1.jpg");
+  background-repeat:no-repeat;
+  background-position:center 42%;
+  background-size:min(920px,88%) auto;
+  transform:scale(1.02);
+  animation:heroDrift 18s var(--ease) infinite alternate;
+}
+@keyframes heroDrift{
+  from{transform:scale(1.02) translate3d(0,0,0)}
+  to{transform:scale(1.06) translate3d(-0.8%,0.6%,0)}
+}
+.hero-shade{
+  position:absolute;inset:0;z-index:-1;
+  background:
+    linear-gradient(180deg, rgba(16,21,28,.08) 0%, rgba(16,21,28,.35) 38%, rgba(16,21,28,.88) 72%, var(--bg) 100%),
+    radial-gradient(ellipse 55% 45% at 50% 35%, transparent 30%, rgba(16,21,28,.25) 100%);
+}
+.hero-inner{
+  padding:clamp(4rem,10vh,7rem) 0 3.5rem;
+}
+.brand{
+  font-family:"Syne",sans-serif;
+  font-weight:800;
+  font-size:clamp(2.8rem,9vw,5.6rem);
+  letter-spacing:-.04em;
+  line-height:.92;
+  margin-bottom:.85rem;
+  opacity:0;
+  animation:rise .9s var(--ease) .1s forwards;
+}
+.hero h2{
+  font-family:"Syne",sans-serif;
+  font-weight:700;
+  font-size:clamp(1.15rem,2.6vw,1.65rem);
+  letter-spacing:-.02em;
+  max-width:18ch;
+  margin-bottom:.75rem;
+  opacity:0;
+  animation:rise .9s var(--ease) .22s forwards;
+}
+.hero p.lead{
+  color:var(--muted);
+  font-size:1.05rem;
+  max-width:36ch;
+  margin-bottom:1.6rem;
+  opacity:0;
+  animation:rise .9s var(--ease) .34s forwards;
+}
+.cta-row{
+  display:flex;flex-wrap:wrap;gap:.75rem;
+  opacity:0;
+  animation:rise .9s var(--ease) .46s forwards;
+}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:.95rem 1.35rem;
+  border-radius:4px;
+  font-weight:700;
+  font-size:.95rem;
+  letter-spacing:.01em;
+  border:1px solid transparent;
+  transition:transform .25s var(--ease), background .25s, border-color .25s, color .25s;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{background:var(--accent);color:#1a120c}
+.btn-primary:hover{background:#e09a5a}
+.btn-ghost{border-color:var(--line);color:var(--ink);background:rgba(255,255,255,.03)}
+.btn-ghost:hover{border-color:rgba(239,236,230,.28)}
+
+@keyframes rise{
+  from{opacity:0;transform:translateY(22px)}
+  to{opacity:1;transform:none}
+}
+
+/* sections */
+section{padding:clamp(3.5rem,8vw,5.5rem) 0}
+.eyebrow{
+  font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:.7rem;
+}
+h3{
+  font-family:"Syne",sans-serif;
+  font-size:clamp(1.7rem,3.5vw,2.45rem);
+  letter-spacing:-.03em;line-height:1.1;
+  margin-bottom:.85rem;max-width:18ch;
+}
+.sub{
+  color:var(--muted);max-width:46ch;font-size:1.02rem;margin-bottom:2rem;
+}
+
+/* compare */
+.compare{
+  display:grid;
+  grid-template-columns:1.05fr .95fr;
+  gap:clamp(1.5rem,4vw,3rem);
+  align-items:center;
+}
+@media (max-width:860px){.compare{grid-template-columns:1fr}}
+.compare-visual{
+  border-radius:6px;overflow:hidden;
+  aspect-ratio:4/3;
+  background:#e8e6e2 center/cover no-repeat;
+  background-image:url("mpower-reset-detail.png");
+  box-shadow:0 0 0 1px var(--line);
+  opacity:0;transform:translateY(24px);
+}
+.compare-list{list-style:none;display:grid;gap:.9rem}
+.compare-list li{
+  padding-bottom:.9rem;border-bottom:1px solid var(--line);
+  display:grid;grid-template-columns:7rem 1fr;gap:1rem;
+  font-size:.92rem;align-items:baseline;
+}
+.compare-list .k{color:var(--muted)}
+.compare-list .old{color:#8a7f76;text-decoration:line-through;text-decoration-color:rgba(196,92,74,.55)}
+.compare-list .new{color:var(--ink);font-weight:600}
+
+/* features editorial — not card grid clutter */
+.features{
+  background:
+    linear-gradient(180deg, transparent, rgba(95,158,140,.06) 40%, transparent),
+    var(--bg);
+}
+.feat-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1.25rem 1.75rem;
+  counter-reset:f;
+}
+@media (max-width:800px){.feat-grid{grid-template-columns:1fr}}
+.feat{
+  padding:1.1rem 0 1.25rem;
+  border-top:1px solid var(--line);
+  opacity:0;transform:translateY(20px);
+}
+.feat::before{
+  counter-increment:f;
+  content:counter(f, decimal-leading-zero);
+  display:block;
+  font-family:"Syne",sans-serif;
+  font-size:.85rem;font-weight:700;
+  color:var(--accent2);
+  letter-spacing:.08em;
+  margin-bottom:.55rem;
+}
+.feat strong{
+  display:block;
+  font-family:"Syne",sans-serif;
+  font-size:1.15rem;
+  letter-spacing:-.02em;
+  margin-bottom:.35rem;
+}
+.feat p{color:var(--muted);font-size:.94rem}
+
+/* UI screenshots */
+.shots{
+  padding:clamp(2.5rem,6vw,4rem) 0;
+  border-top:1px solid var(--line);
+}
+.shot-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:1.35rem;
+  margin-top:1.75rem;
+}
+@media (max-width:800px){.shot-grid{grid-template-columns:1fr}}
+.shot{
+  border:1px solid var(--line);
+  border-radius:8px;
+  overflow:hidden;
+  background:var(--bg2);
+  opacity:0;transform:translateY(18px);
+}
+.shot img{width:100%;height:auto;display:block}
+.shot figcaption{
+  padding:.85rem 1rem 1rem;
+  color:var(--muted);
+  font-size:.88rem;
+}
+.shot figcaption strong{
+  display:block;
+  color:var(--ink);
+  font-family:"Syne",sans-serif;
+  font-size:1.05rem;
+  letter-spacing:-.02em;
+  margin-bottom:.25rem;
+}
+
+/* scene band */
+.scene{
+  position:relative;
+  min-height:58vh;
+  display:grid;align-items:end;
+  overflow:hidden;
+}
+.scene-media{
+  position:absolute;inset:0;z-index:-2;
+  background-color:#f4f2ee;
+  background-image:url("wfubmpower_1.jpg");
+  background-repeat:no-repeat;
+  background-position:78% center;
+  background-size:min(640px,70%) auto;
+}
+.scene-shade{
+  position:absolute;inset:0;z-index:-1;
+  background:linear-gradient(90deg, rgba(16,21,28,.96) 0%, rgba(16,21,28,.82) 42%, rgba(16,21,28,.35) 78%, rgba(16,21,28,.15) 100%);
+}
+.scene .copy{padding:clamp(2.5rem,6vw,4rem) 0;max-width:34rem}
+.scene h3{max-width:14ch}
+
+/* why buy */
+.why-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1rem;
+}
+@media (max-width:800px){.why-grid{grid-template-columns:1fr}}
+.why{
+  padding:1.35rem 0;
+  border-top:1px solid var(--line);
+  opacity:0;transform:translateY(18px);
+}
+.why strong{
+  font-family:"Syne",sans-serif;
+  display:block;font-size:1.2rem;margin-bottom:.4rem;letter-spacing:-.02em;
+}
+.why p{color:var(--muted);font-size:.95rem}
+
+/* FAQ */
+.faq{max-width:720px}
+details{
+  border-top:1px solid var(--line);
+  padding:1rem 0;
+}
+details:last-child{border-bottom:1px solid var(--line)}
+summary{
+  list-style:none;
+  cursor:pointer;
+  font-family:"Syne",sans-serif;
+  font-weight:700;
+  font-size:1.05rem;
+  letter-spacing:-.02em;
+  display:flex;justify-content:space-between;gap:1rem;align-items:center;
+}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--accent);font-size:1.3rem;font-weight:600}
+details[open] summary::after{content:"–"}
+details p{
+  color:var(--muted);
+  margin-top:.75rem;
+  font-size:.96rem;
+  max-width:58ch;
+}
+
+/* CTA close */
+.closing{
+  padding-bottom:clamp(4rem,10vw,6rem);
+}
+.closing-box{
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:clamp(1.75rem,4vw,2.75rem);
+  background:
+    radial-gradient(ellipse 60% 80% at 100% 0%, rgba(212,137,74,.14), transparent 55%),
+    var(--bg2);
+}
+.closing-box h3{max-width:16ch}
+.specs{
+  margin-top:1.5rem;
+  display:flex;flex-wrap:wrap;gap:.55rem .9rem;
+  color:var(--muted);font-size:.82rem;
+}
+.specs span{border-left:2px solid var(--accent);padding-left:.55rem}
+code{
+  font-family:ui-monospace,Consolas,monospace;
+  font-size:.86em;
+  color:#e8d5c4;
+  background:rgba(255,255,255,.05);
+  padding:.08em .35em;
+  border-radius:3px;
+}
+.pages{
+  display:flex;flex-wrap:wrap;gap:.45rem;
+  margin-top:1.35rem;
+}
+.pages span{
+  font-size:.78rem;font-weight:600;letter-spacing:.02em;
+  color:var(--muted);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:.35rem .7rem;
+}
+
+.reveal.is-in{opacity:1!important;transform:none!important;transition:opacity .8s var(--ease), transform .8s var(--ease)}
+
+footer{
+  padding:1.5rem 0 2.5rem;
+  border-top:1px solid var(--line);
+  color:var(--muted);
+  font-size:.85rem;
+  display:flex;flex-wrap:wrap;justify-content:space-between;gap:1rem;
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-media" aria-hidden="true"></div>
+  <div class="hero-shade" aria-hidden="true"></div>
+  <div class="wrap hero-inner">
+    <div class="brand">NetRelayMP</div>
+    <h2>Üç prizli akıllı enerji kontrolü.</h2>
+    <p class="lead">mFi mPower donanımı + bağımsız overlay. TR/EN panel, MQTT, zamanlama, ping izleme ve filo araçları — sizin ağınızda.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#yenilik">Kabiliyetler</a>
+      <a class="btn btn-ghost" href="#yazilim">Yazılım ekranları</a>
+      <a class="btn btn-ghost" href="#neden">Neden NetRelayMP?</a>
+    </div>
+  </div>
+</header>
+
+<section id="donanim">
+  <div class="wrap compare">
+    <div class="compare-visual reveal" role="img" aria-label="mPower Device Reset ve Circuit Breaker detayı"></div>
+    <div>
+      <p class="eyebrow">Donanım + overlay 1.3.24</p>
+      <h3>Güçlü gövde. Akıllı katman.</h3>
+      <p class="sub">Üç Schuko priz, Wi‑Fi, Device Reset ve Circuit Breaker Reset. Stok firmware kalır; NetRelayMP overlay modern panel ve otomasyonu ekler.</p>
+      <ul class="compare-list">
+        <li><span class="k">Panel</span><span class="new">Web UI · TR/EN · :8088 · güç / enerji / uptime</span></li>
+        <li><span class="k">Otomasyon</span><span class="new">MQTT · HA discovery · REST · Apple Home köprüsü</span></li>
+        <li><span class="k">Zamanlama</span><span class="new">Saat · haftanın günü · pulse · gün doğumu/batımı</span></li>
+        <li><span class="k">Saha</span><span class="new">3× ping kuralı · watchdog · JSON yedek · UDP keşif</span></li>
+        <li><span class="k">Ağ</span><span class="new">Kurtarma AP · DHCP/statik · LED · web fabrika</span></li>
+      </ul>
+      <div class="pages" aria-label="Web menü">
+        <span>Panel</span><span>Wi‑Fi</span><span>Ağ</span><span>Zamanlama</span><span>Ping</span><span>Yedek</span><span>Ayarlar</span><span>Kurulum</span><span>API</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="yenilik">
+  <div class="wrap">
+      <p class="eyebrow">Kabiliyetler · 1.3.24</p>
+      <h3>Sahada işe yarayan özellikler</h3>
+      <p class="sub">Kurulum sihirbazından MQTT ve filo yedeklemeye — cihazda gerçekten çalışan katman.</p>
+      <div class="feat-grid">
+      <article class="feat reveal"><strong>Wi‑Fi, kurtarma AP, ağ</strong><p>SSID tara/bağlan (Station veya WDS). STA düşünce kurtarma AP <code>192.168.2.20:8088</code> geri gelir. DHCP veya statik IP; DHCP yoksa acil profil <code>192.168.1.50</code>.</p></article>
+      <article class="feat reveal"><strong>Panel &amp; röle</strong><p>Anlık: açık/kapalı, güç (W), enerji (Wh), volt (örn. 227.2 V). Tek priz veya tümünü aç-kapa, 10 sn cycle, pulse.</p></article>
+      <article class="feat reveal"><strong>MQTT + Home Assistant</strong><p>Prefix <code>mpower/mltek/{MAC}</code>: state, uptime, custom alan, cmd (on/off/pulse/cycle/update). HA discovery ile switch ve sensör.</p></article>
+      <article class="feat reveal"><strong>REST API</strong><p>Token’lı okuma/yazma: <code>status.sh</code> / <code>action.sh</code>. API menüsünden REST aç/kapa. MQTT ile aynı kontrol.</p></article>
+      <article class="feat reveal"><strong>Zamanlama &amp; güneş</strong><p>Haftanın günü, saat, pulse (1 saat açık / 1 saat dur). Gün batımından 30 dk sonra aç; gün doğumundan 30 dk önce kapat.</p></article>
+      <article class="feat reveal"><strong>Ping izleme</strong><p>IP’ye erişilemezse örn. port 1’i 10 sn kapat, sonra eski haline dön. Aç / kapa / tersine; cooldown peş peşe tetiklemeyi keser.</p></article>
+      <article class="feat reveal"><strong>Watchdog</strong><p>~30 sn: httpd :8088, Wi‑Fi, NTP, MQTT, zamanlayıcı, ping, UDP keşif ve buton izleme. Düşeni yeniden ayağa kaldırır.</p></article>
+      <article class="feat reveal"><strong>Filo &amp; keşif</strong><p>JSON yedek/geri yükleme, <code>clone-config.ps1</code>, UDP 5555 “ben buradayım” (NRfinder :8088 açar). Overlay tarayıcıdan veya MQTT URL ile güncellenir.</p></article>
+      <article class="feat reveal"><strong>LED, oturum, reset</strong><p>LED: STA’da mavi, kurtarmada sarı, istenirse kapalı. Giriş <code>admin</code> / <code>mltek</code>. Fabrika yalnız Ayarlar’dan; fiziksel düğme ~2 sn reboot — uzun basmak overlay’i siler.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="shots" id="yazilim">
+  <div class="wrap">
+    <p class="eyebrow">Yazılım · Türkçe arayüz</p>
+    <h3>Panelden ping izlemeye</h3>
+    <p class="sub">Aynı ekranlar İngilizce UI’da da var. Ayrıntılı anlatım: <a href="../docs/OZELLIKLER-TR.md" style="color:var(--accent);text-decoration:underline">Özellikler (TR)</a> · <a href="../docs/FEATURES-EN.md" style="color:var(--accent);text-decoration:underline">Features (EN)</a>.</p>
+    <div class="shot-grid">
+      <figure class="shot reveal">
+        <img src="software_tr.png" alt="NetRelayMP panel — anlık güç, enerji, voltaj ve priz anahtarları">
+        <figcaption><strong>Panel</strong>Priz açık/kapalı, anlık güç (W), enerji (Wh), voltaj (V). Açılıp kapatılır.</figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <img src="software_tr_zamanlanmış.png" alt="Zamanlama — haftanın günü, saat, gün doğumu/batımı, pulse">
+        <figcaption><strong>Zamanlama</strong>Haftanın günü, saat, pulse (1 saat açık / 1 saat dur), gün batımı +30 dk / gün doğumu −30 dk.</figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <img src="software_tr_rest_api.png" alt="REST API menüsü — token ve servis aç/kapa">
+        <figcaption><strong>REST API</strong>Token ile okuma ve kontrol. Menüden REST aç/kapa.</figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <img src="software_tr_mqtt.png" alt="MQTT ayarları — broker, prefix, HA discovery">
+        <figcaption><strong>MQTT</strong>Broker’a bağlan; state oku, cmd ile aç/kapa/pulse. Önerilen: mqttserver :31883.</figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <img src="software_tr_ping_watchdog.png" alt="Ping izleme — hedef IP, kapat, 10 sn sonra eski haline">
+        <figcaption><strong>Ping izleme</strong>IP’ye erişilemezse portu 10 sn kapat, sonra eski haline dön.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="scene">
+  <div class="scene-media" aria-hidden="true"></div>
+  <div class="scene-shade" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="copy">
+      <p class="eyebrow">Donanım + yazılım</p>
+      <h3>Kontrol, sizin ağınızda</h3>
+      <p class="sub" style="margin-bottom:0">Üç prizli mPower gövdesi; NetRelayMP ile yerel panel (~1 dk), MQTT ve saha operasyonu. Device Reset ~2 sn yeniden başlatır. Fabrika ayarı yalnız web Ayarlar’dan; overlay kalır.</p>
+    </div>
+  </div>
+</section>
+
+<section id="neden">
+  <div class="wrap">
+    <p class="eyebrow">Neden satın almalısınız?</p>
+    <h3>Karar vermeyi kolaylaştıran gerekçeler</h3>
+    <div class="why-grid" style="margin-top:1.5rem">
+      <article class="why reveal"><strong>Yerel kontrol</strong><p>Panel ve röleler sizin LAN’ınızda çalışır. Broker zorunlu değil; MQTT kullanırsanız o da size aittir.</p></article>
+      <article class="why reveal"><strong>Entegrasyon hazır</strong><p>MQTT discovery, REST token ve Apple Home köprüsü (HA Bridge / Homebridge) ile hemen bağlanır.</p></article>
+      <article class="why reveal"><strong>Zamanlama &amp; güneş</strong><p>Haftanın günü, 1 saat çalış / 1 saat dur, gün batımından 30 dk sonra ışık, doğumdan 30 dk önce kapa. NTP veya tarayıcı saati.</p></article>
+      <article class="why reveal"><strong>Çoklu cihaz</strong><p>UDP 5555, JSON yedek ve clone script ile aynı Wi‑Fi/MQTT profilini filoya basmak kolay.</p></article>
+      <article class="why reveal"><strong>Saha dayanıklılığı</strong><p>Kurtarma AP, watchdog, priz başına ping ve web fabrika — kopunca 192.168.2.20 ile geri dönülür.</p></article>
+      <article class="why reveal"><strong>Güncellenebilir overlay</strong><p>Ayarlar’dan tar yükleme veya MQTT <code>update</code> + URL. Resmi .bin’e bağımlı değil; stok UI :8080 durur.</p></article>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Sık sorulanlar</p>
+    <h3>Soru &amp; cevap</h3>
+    <div class="faq" style="margin-top:1.25rem">
+      <details>
+        <summary>NetRelayMP nedir?</summary>
+        <p>EOL Ubiquiti mFi mPower (MF.v2.1.11) üzerine kurulan bağımsız overlay. Stok firmware ve :8080 UI kalır; asıl kullanım <code>http://IP:8088</code> — TR/EN panel, MQTT/HA, zamanlama, ping, yedek ve REST.</p>
+      </details>
+      <details>
+        <summary>Cihazı nereden satın alabilirim?</summary>
+        <p>mFi mPower donanımı: <a href="https://wifidepo.com/ubnt-mpower-521">wifidepo.com/ubnt-mpower-521</a> veya <a href="https://wifianten.com/ubnt-mpower-335">wifianten.com/ubnt-mpower-335</a>. Yazılım: <a href="https://github.com/mlteknoloji/ubnt_mPOWER">ubnt_mPOWER</a>.</p>
+      </details>
+      <details>
+        <summary>GitHub’da hangi depolar var?</summary>
+        <p><a href="https://github.com/mlteknoloji/ubnt_mPOWER">ubnt_mPOWER</a> cihaz overlay’i (bu yazılım: panel, REST, MQTT istemcisi). <a href="https://github.com/mlteknoloji/mqttserver">mqttserver</a> LAN MQTT broker + web panel (port 31883 / 8082). Cihazlar broker’a bağlanır.</p>
+      </details>
+      <details>
+        <summary>Home Assistant ve Apple Home çalışır mı?</summary>
+        <p>Evet. HA discovery açıksa switch ve güç/uptime sensörleri çıkar. Apple Home native değil; HA HomeKit Bridge veya Homebridge ile Ev / Siri (doküman: HOMEKIT-TR).</p>
+      </details>
+      <details>
+        <summary>Birden fazla cihazı nasıl yönetirim?</summary>
+        <p>Master’dan JSON yedek (isterseniz parolalar dahil), <code>clone-config.ps1</code> ile diğer IP’lere basılır. UDP 5555 yayını NRfinder’ın :8088’i açmasını sağlar.</p>
+      </details>
+      <details>
+        <summary>Kurulum ve varsayılan giriş nedir?</summary>
+        <p>Windows’tan <code>deploy.ps1</code>; UI ~1 dk içinde :8088. Giriş: <code>admin</code> / <code>mltek</code>. Fabrika yalnız Ayarlar’dan (overlay kalır). Fiziksel düğme ~2 sn reboot; uzun basmak stok sıfırlama yapıp overlay’i siler.</p>
+      </details>
+      <details>
+        <summary>İnternet olmadan çalışır mı?</summary>
+        <p>Evet. Panel, röle, zamanlama ve yerel MQTT broker LAN’da çalışır. NTP yoksa Ayarlar’dan tarayıcı saati yazılır. Wi‑Fi kopunca kurtarma AP 192.168.2.20 geri gelir.</p>
+      </details>
+      <details>
+        <summary>Device Reset ve Circuit Breaker Reset?</summary>
+        <p>Device Reset: ~2 sn yeniden başlatma (yazılım fabrika değil). Circuit Breaker Reset: aşırı yükte atmış donanım kesicisini basmak içindir — yazılım sıfırlaması değildir.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <div class="closing-box">
+      <p class="eyebrow">Sonraki adım</p>
+      <h3>NetRelayMP ile kontrolü alın</h3>
+      <p class="sub">Overlay 1.3.24: panel, MQTT, zamanlama, ping ve filo araçları. Kurulum ve saha dokümanlarıyla başlayın.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://wifidepo.com/ubnt-mpower-521">WifiDepo’dan al</a>
+        <a class="btn btn-ghost" href="https://wifianten.com/ubnt-mpower-335">WifiAnten’den al</a>
+        <a class="btn btn-ghost" href="../docs/OZELLIKLER-TR.md">Özellikler + ekranlar</a>
+        <a class="btn btn-ghost" href="../docs/KURULUM-TR.md">Kurulum dokümanı</a>
+        <a class="btn btn-ghost" href="../docs/HOMEKIT-TR.md">Apple Home rehberi</a>
+        <a class="btn btn-ghost" href="../docs/SAHA-TR.md">Saha checklist</a>
+        <a class="btn btn-ghost" href="../docs/DEPOSLAR-TR.md">GitHub depoları</a>
+      </div>
+      <div class="specs">
+        <span>Donanım: mFi mPower · 3× Schuko · MF.v2.1.11</span>
+        <span>Overlay 1.3.24 · UI :8088 · admin / mltek</span>
+        <span>MQTT mpower/mltek/{MAC} · HA · REST</span>
+        <span>Kurtarma AP 192.168.2.20 · stok UI :8080</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <span>NetRelayMP · <a href="https://github.com/mlteknoloji/ubnt_mPOWER" style="color:var(--accent)">ubnt_mPOWER</a> · <a href="https://github.com/mlteknoloji/mqttserver" style="color:var(--accent)">mqttserver</a></span>
+  <span>Satın al: <a href="https://wifidepo.com/ubnt-mpower-521" style="color:var(--accent);text-decoration:underline">wifidepo.com</a> · <a href="https://wifianten.com/ubnt-mpower-335" style="color:var(--accent);text-decoration:underline">wifianten.com</a></span>
+</footer>
+
+<script>
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('is-in');io.unobserve(e.target)}})
+},{threshold:.16,rootMargin:'0px 0px -8% 0px'});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

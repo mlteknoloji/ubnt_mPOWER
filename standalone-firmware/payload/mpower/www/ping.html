@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="tr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ping izleme · NetRelayMP</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script src="i18n.js"></script>
+<body data-page-title="pingTitle">
+<div class="app" id="appShell">
+  <main class="main">
+    <div class="ping-shell">
+      <div class="topbar">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <button type="button" class="menu-btn" id="menuBtn" aria-label="Menü">☰</button>
+          <div>
+            <h2 style="margin:0" data-i18n="pingTitle">Ping izleme</h2>
+            <div class="sub" data-i18n="pingSub">Her priz için ayrı kural</div>
+          </div>
+        </div>
+        <a class="quiet" href="/" style="padding:10px 14px;border-radius:10px;background:#243352;color:#fff" data-i18n="panel">Panel</a>
+      </div>
+
+      <div class="ping-flow" data-i18n="pingFlow">
+        3 bağımsız kural: her röle kendi hedefini izler. Hedef düşerse o priz açılır / kapanır / tersine çevrilir, sonra eski haline döner.
+      </div>
+
+      <div class="setup-status" aria-live="polite">
+        <div class="msg" id="statusMsg"><span class="msg-ico" id="statusIco"></span><span class="msg-body" id="statusText"></span></div>
+      </div>
+
+      <div class="ping-stat" id="sRun" style="margin-bottom:12px">
+        <div class="k" data-i18n="service">Servis</div><div class="v" id="vRun">—</div>
+      </div>
+
+      <div id="rules"></div>
+
+      <div class="toolbar" style="margin-top:12px">
+        <button type="button" class="quiet" onclick="load()" data-i18n="refresh">Yenile</button>
+        <button type="button" class="grow" style="flex:1" id="btnSaveAll" data-i18n="saveAll">Tümünü kaydet</button>
+      </div>
+      <p class="note" style="margin:12px 0 0" data-i18n="pingNote">Kilitli priz atlanır. Cooldown peş peşe tetiklemeyi engeller.</p>
+    </div>
+  </main>
+</div>
+<script>
+MPNav.mount('ping');
+function actMap(){return{off:t('off'),on:t('on'),toggle:t('toggle')}}
+let pingDirty=false, pingLoading=false;
+
+function defaultRule(port){
+  return {port:port,enabled:0,host:'',interval:30,fail_count:3,fail_action:'off',restore_sec:10,cooldown:60,fails:0,last_ok:0,last_fail:0,last_action:''};
+}
+
+function normalizeRules(list){
+  const src=Array.isArray(list)?list:[];
+  return [1,2,3].map(port=>{
+    const found=src.find(r=>+r.port===port) || src[port-1] || {};
+    return Object.assign(defaultRule(port),found,{port:port});
+  });
+}
+
+function renderRules(list){
+  rules.innerHTML=normalizeRules(list).map(ruleCard).join('');
+  bindToggles();
+}
+
+function setMsg(text,kind,busy){
+  if(!text){statusMsg.className='msg';statusText.textContent='';statusIco.textContent='';return}
+  const k=kind||'info';
+  statusMsg.className='msg show '+k+(busy?' busy':'');
+  statusIco.textContent=busy?'':(k==='ok'?'✓':k==='err'?'!':'i');
+  statusText.textContent=text;
+}
+function fmt(ts){
+  if(!ts||ts<100000) return '—';
+  try{return new Date(ts*1000).toLocaleString()}catch(e){return String(ts)}
+}
+function reachLabel(r){
+  if(!+r.enabled) return {t:t('off'),c:''};
+  if(+r.busy) return {t:t('busy'),c:'warn'};
+  if(r.last_ok && (!r.last_fail || +r.last_ok>=+r.last_fail)) return {t:t('reachable'),c:'ok'};
+  if(r.last_fail) return {t:t('unreachable'),c:'bad'};
+  return {t:t('waiting'),c:''};
+}
+
+function ruleCard(r){
+  const p=r.port;
+  const reach=reachLabel(r);
+  const ACT=actMap();
+  const fails=+r.enabled?(r.fails||0):0;
+  const lastOk=+r.enabled?fmt(r.last_ok):'—';
+  const lastFail=+r.enabled?fmt(r.last_fail):'—';
+  const lastAction=+r.enabled?(r.last_action||'—'):'—';
+  return `<section class="card" data-port="${p}" id="rule${p}">
+    <div class="head">
+      <h3 style="margin:0">${t('outlet')} ${p}</h3>
+      <span class="pill ${reach.c==='ok'?'on':reach.c==='bad'?'off':''}">${reach.t}</span>
+    </div>
+    <div class="sched-tog-block" style="margin-top:8px">
+      <label class="tog">
+        <input type="checkbox" id="en${p}" ${+r.enabled?'checked':''}>
+        <span class="tog-track"></span>
+        <span class="tog-text" id="enLab${p}">${+r.enabled?t('ruleOn'):t('ruleOff')}</span>
+      </label>
+    </div>
+    <label>${t('target')}</label>
+    <input id="host${p}" value="${(r.host||'').replace(/"/g,'&quot;')}" placeholder="192.168.1.1" autocomplete="off">
+    <div class="field-grid">
+      <div><label>${t('interval')}</label><input id="interval${p}" type="number" min="5" max="3600" value="${r.interval||30}"></div>
+      <div><label>${t('failCount')}</label><input id="fail_count${p}" type="number" min="1" max="20" value="${r.fail_count||3}"></div>
+      <div>
+        <label>${t('onUnreach')}</label>
+        <select id="fail_action${p}">
+          <option value="off" ${r.fail_action==='off'?'selected':''}>${ACT.off}</option>
+          <option value="on" ${r.fail_action==='on'?'selected':''}>${ACT.on}</option>
+          <option value="toggle" ${r.fail_action==='toggle'?'selected':''}>${ACT.toggle}</option>
+        </select>
+      </div>
+      <div><label>${t('restoreSec')}</label><input id="restore_sec${p}" type="number" min="1" max="600" value="${r.restore_sec||10}"></div>
+      <div><label>${t('cooldown')}</label><input id="cooldown${p}" type="number" min="0" max="3600" value="${r.cooldown||60}"></div>
+    </div>
+    <p class="note" style="margin:8px 0 0">${t('counters')} ${fails}/${r.fail_count||3} · ${t('lastOk')} ${lastOk} · ${t('lastFail')} ${lastFail} · ${lastAction}</p>
+    <div class="toolbar" style="margin:10px 0 0">
+      <button type="button" class="quiet" onclick="testPort(${p})">${t('pingTest')}</button>
+      <button type="button" class="grow" style="flex:1" onclick="saveOne(${p})">${t('saveRule')}</button>
+    </div>
+  </section>`;
+}
+
+function bindToggles(){
+  for(let p=1;p<=3;p++){
+    const en=document.getElementById('en'+p);
+    const lab=document.getElementById('enLab'+p);
+    if(!en) continue;
+    const sync=()=>{lab.textContent=en.checked?t('ruleOn'):t('ruleOff');pingDirty=true};
+    en.onchange=sync; sync();
+  }
+  pingDirty=false;
+  rules.querySelectorAll('input,select').forEach(el=>{
+    el.addEventListener('input',()=>{pingDirty=true});
+    el.addEventListener('change',()=>{pingDirty=true});
+  });
+}
+
+function collect(p){
+  return {
+    enabled: document.getElementById('en'+p).checked?1:0,
+    host: document.getElementById('host'+p).value.trim(),
+    interval: document.getElementById('interval'+p).value,
+    fail_count: document.getElementById('fail_count'+p).value,
+    fail_action: document.getElementById('fail_action'+p).value,
+    restore_sec: document.getElementById('restore_sec'+p).value,
+    cooldown: document.getElementById('cooldown'+p).value
+  };
+}
+
+function paramsAll(){
+  const p=new URLSearchParams({action:'set',token:MPApi.token()});
+  for(let i=1;i<=3;i++){
+    const r=collect(i);
+    p.set('enabled'+i,r.enabled);
+    p.set('host'+i,r.host);
+    p.set('interval'+i,r.interval);
+    p.set('fail_count'+i,r.fail_count);
+    p.set('fail_action'+i,r.fail_action);
+    p.set('restore_sec'+i,r.restore_sec);
+    p.set('cooldown'+i,r.cooldown);
+  }
+  return p;
+}
+
+async function load(force=false){
+  if(pingLoading) return;
+  if(!force && (pingDirty||rules.contains(document.activeElement))) return;
+  pingLoading=true;
+  try{
+    const res=await fetch('/cgi-bin/pingwatch.sh?action=get',{cache:'no-store'});
+    const raw=await res.text();
+    if(!raw.trim()) throw new Error('empty response');
+    const x=JSON.parse(raw);
+    if(!force && (pingDirty||rules.contains(document.activeElement))) return;
+    vRun.textContent=x.running?t('running'):t('stopped');
+    sRun.className='ping-stat '+(x.running?'ok':'warn');
+    renderRules(x.rules);
+  }catch(e){setMsg(t('statusFail')+': '+(e.message||e),'err')}
+  finally{pingLoading=false}
+}
+
+async function saveAll(){
+  if(!MPApi.token()) MPApi.setToken();
+  setMsg(t('saving'),'info',true);
+  try{
+    const x=await (await fetch('/cgi-bin/pingwatch.sh?'+paramsAll(),{method:'POST',credentials:'same-origin'})).json();
+    if(x.ok){pingDirty=false;setMsg(t('savedRules'),'ok'); load(true)}
+    else setMsg(x.error||t('error'),'err');
+  }catch(e){setMsg(e.message||String(e),'err')}
+}
+
+async function saveOne(port){
+  if(!MPApi.token()) MPApi.setToken();
+  setMsg(t('savingPort',{n:port}),'info',true);
+  try{
+    const x=await (await fetch('/cgi-bin/pingwatch.sh?'+paramsAll(),{method:'POST',credentials:'same-origin'})).json();
+    if(x.ok){pingDirty=false;setMsg(t('savedPort',{n:port}),'ok'); load(true)}
+    else setMsg(x.error||t('error'),'err');
+  }catch(e){setMsg(e.message||String(e),'err')}
+}
+
+async function testPort(port){
+  if(!MPApi.token()) MPApi.setToken();
+  const host=document.getElementById('host'+port).value.trim();
+  if(!host){setMsg(t('needTarget',{n:port}),'err');return}
+  setMsg(t('pingingPort',{n:port}),'info',true);
+  try{
+    const p=new URLSearchParams({action:'test',token:MPApi.token(),host,port});
+    const x=await (await fetch('/cgi-bin/pingwatch.sh?'+p,{method:'POST',credentials:'same-origin'})).json();
+    if(!x.ok) setMsg(x.error||t('error'),'err');
+    else if(x.reachable) setMsg(t('portReach',{n:port,h:x.host}),'ok');
+    else setMsg(t('portUnreach',{n:port,h:x.host}),'err');
+  }catch(e){setMsg(e.message||String(e),'err')}
+}
+
+btnSaveAll.onclick=saveAll;
+renderRules([]);
+load();
+setInterval(()=>load(false),5000);
+</script>
+</body>
+</html>

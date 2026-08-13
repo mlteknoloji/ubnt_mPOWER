@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="tr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>API</title>
+<link rel="stylesheet" href="style.css">
+<script src="i18n.js"></script>
+<body data-page-title="apiTitle">
+<div class="app" id="appShell">
+<main class="main">
+<div class="topbar">
+  <div style="display:flex;gap:10px;align-items:flex-start">
+    <button class="menu-btn" id="menuBtn">☰</button>
+    <div>
+      <h2 data-i18n="apiTitle">REST / MQTT API</h2>
+      <div class="sub" data-i18n="apiSub">REST aç/kapa · entegrasyon referansı</div>
+    </div>
+  </div>
+  <a href="/" style="padding:10px 14px;border-radius:10px;background:#243352;color:#fff" data-i18n="panel">Panel</a>
+</div>
+
+<section class="card">
+  <h3 data-i18n="apiRest">REST API</h3>
+  <label class="tog">
+    <input type="checkbox" id="restEn" checked>
+    <span class="tog-track"></span>
+    <span class="tog-text" id="restLab" data-i18n="apiOn">REST API açık</span>
+  </label>
+  <p class="note" data-i18n="apiToggleNote">Kapalıyken token ile dışarıdan okuma/yazma durur. Panele giriş ve MQTT çalışmaya devam eder.</p>
+  <p class="note" id="apiNote"></p>
+</section>
+
+<section class="card">
+  <pre class="code" id="apiDoc"></pre>
+</section>
+</main>
+</div>
+<script>
+MPNav.mount('api');
+function restDoc(){
+  return lang()==='en'
+?`REST (when enabled)
+GET  /cgi-bin/status.sh
+  → version, overlay, uptime (s), ssid, ip, mac, name, now, synced, outlets[]
+
+POST /cgi-bin/action.sh?port=1&state=on&token=TOKEN
+POST /cgi-bin/action.sh?port=1&state=pulse&delay=30&to=1&token=TOKEN
+  Relay is switched before the JSON reply. For lowest latency use MQTT cmd
+  on the LAN (no CGI fork): {"action":"on","port":1}
+
+Default TOKEN (all devices, first install):
+  6d6c74656b6e657472656c61796d70316d6c74656b6e657472656c61796d7031
+  (hex: "mlteknetrelaymp1" × 2)
+
+MQTT (independent of REST toggle)
+Telemetry (JSON):
+  mpower/mltek/{MAC}/state          (custom field included)
+  mpower/mltek/{MAC}/custom         retain
+  mpower/mltek/{MAC}/outlet/1/json
+
+Commands:
+  mpower/mltek/{MAC}/cmd
+  {"action":"on","port":1}
+  {"action":"off","port":2}
+  {"action":"pulse","port":1,"delay":10,"to":1}
+  {"action":"cycle","port":"all","delay":10}
+  {"action":"update","url":"http://pc/pkg.tar"}
+
+HA compatible:
+  mpower/mltek/{MAC}/relay/1/set  => ON|OFF`
+:`REST (açıkken)
+GET  /cgi-bin/status.sh
+  → version, overlay, uptime (sn), ssid, ip, mac, name, now, synced, outlets[]
+
+POST /cgi-bin/action.sh?port=1&state=on&token=TOKEN
+POST /cgi-bin/action.sh?port=1&state=pulse&delay=30&to=1&token=TOKEN
+  Röle JSON cevabından önce yazılır. En düşük gecikme: LAN MQTT cmd
+  (CGI yok): {"action":"on","port":1}
+
+Varsayılan TOKEN (tüm cihazlar, ilk kurulum):
+  6d6c74656b6e657472656c61796d70316d6c74656b6e657472656c61796d7031
+  (hex: "mlteknetrelaymp1" × 2)
+
+MQTT (REST anahtarından bağımsız)
+Telemetri (JSON):
+  mpower/mltek/{MAC}/state          (custom field included)
+  mpower/mltek/{MAC}/custom         retain
+  mpower/mltek/{MAC}/outlet/1/json
+
+Komutlar:
+  mpower/mltek/{MAC}/cmd
+  {"action":"on","port":1}
+  {"action":"off","port":2}
+  {"action":"pulse","port":1,"delay":10,"to":1}
+  {"action":"cycle","port":"all","delay":10}
+  {"action":"update","url":"http://pc/pkg.tar"}
+
+HA uyumlu:
+  mpower/mltek/{MAC}/relay/1/set  => ON|OFF`;
+}
+function paintRest(on){
+  restEn.checked=!!on;
+  restLab.textContent=on?t('apiOn'):t('apiOff');
+  apiDoc.textContent=restDoc();
+}
+async function loadApi(){
+  try{
+    const x=await fetch('/cgi-bin/api.sh?action=get',{credentials:'same-origin'}).then(r=>r.json());
+    paintRest(x.enabled==1);
+  }catch(e){
+    apiNote.textContent=e.message||t('error');
+  }
+}
+async function saveApi(){
+  const on=restEn.checked?1:0;
+  restLab.textContent=on?t('apiOn'):t('apiOff');
+  const p=new URLSearchParams({action:'set',enabled:on,token:MPApi.token()});
+  try{
+    const r=await fetch('/cgi-bin/api.sh?'+p,{method:'POST',credentials:'same-origin'});
+    const x=await r.json().catch(()=>({}));
+    if(!r.ok || x.ok===false){
+      restEn.checked=!on;
+      restLab.textContent=restEn.checked?t('apiOn'):t('apiOff');
+      apiNote.textContent=x.error||t('error');
+      return;
+    }
+    paintRest(x.enabled==1);
+    apiNote.textContent=t('apiSaved');
+  }catch(e){
+    restEn.checked=!on;
+    restLab.textContent=restEn.checked?t('apiOn'):t('apiOff');
+    apiNote.textContent=e.message||t('error');
+  }
+}
+restEn.addEventListener('change',saveApi);
+loadApi();
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="tr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kurulum · NetRelayMP</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script src="i18n.js"></script>
+<body>
+<div class="app" id="appShell">
+  <main class="main">
+    <div class="setup-shell">
+      <div class="topbar setup-hero">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <button type="button" class="menu-btn" id="menuBtn" aria-label="Menü">☰</button>
+          <div class="brand" style="padding:0">
+            <div class="brand-badge">NR</div>
+            <div>
+              <h1 style="margin:0;font-size:1.15rem" data-i18n="setupTitle">Kurulum</h1>
+              <p style="margin:2px 0 0;color:var(--muted);font-size:.82rem" data-i18n="setupSubWifiOnly">Wi‑Fi’ye bağlanın · IP otomatik (DHCP)</p>
+            </div>
+          </div>
+        </div>
+        <a class="quiet" href="/" id="setupPanelLink" style="padding:10px 14px;border-radius:10px;background:#243352;color:#fff;white-space:nowrap" data-i18n="panel">Panel</a>
+      </div>
+
+      <div class="setup-status" aria-live="polite">
+        <div class="msg" id="statusMsg"><span class="msg-ico" id="statusIco"></span><span class="msg-body" id="statusText"></span></div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="k" data-i18n="macLabel">MAC adresi</div><div class="v" id="setupMac">—</div></div>
+        <div class="stat"><div class="k" data-i18n="addrMode">Adresleme</div><div class="v" data-i18n="dhcp">DHCP (otomatik)</div></div>
+      </div>
+
+      <section class="card">
+        <h3 data-i18n="wifiTitle">Wi‑Fi</h3>
+        <p class="setup-lead" data-i18n="setupLead">Cihazı ev/iş ağına alın. Bağlantı koparsa kısa süre 192.168.2.20 üzerinden erişebilirsiniz.</p>
+        <div class="toolbar">
+          <button type="button" class="quiet" id="btnScan" data-i18n="scan">Ağları tara</button>
+        </div>
+        <label for="net" data-i18n="foundNets">Bulunan ağlar</label>
+        <select id="net"><option value="" data-i18n="pressScan">Tarama için butona basın</option></select>
+        <label for="ssid" data-i18n="ssid">SSID</label>
+        <input id="ssid" maxlength="32" autocomplete="off" placeholder="Ağ adı">
+        <div class="field-grid">
+          <div>
+            <label for="wmode" data-i18n="wifiMode">Mod</label>
+            <select id="wmode">
+              <option value="wds" data-i18n="modeWds">Station WDS</option>
+              <option value="station" selected data-i18n="modeStation">Station</option>
+            </select>
+          </div>
+          <div>
+            <label for="security" data-i18n="security">Güvenlik</label>
+            <select id="security">
+              <option value="wpa" data-i18n="wpa">WPA / WPA2</option>
+              <option value="open" data-i18n="openNet">Açık (parolasız)</option>
+            </select>
+          </div>
+        </div>
+        <label for="psk" data-i18n="wifiPass">Wi‑Fi parolası</label>
+        <div class="pw-wrap">
+          <input id="psk" type="password" maxlength="63" autocomplete="current-password" placeholder="••••••••">
+          <button type="button" class="quiet show-pw" data-for="psk" data-i18n="show">Göster</button>
+        </div>
+        <div class="setup-actions">
+          <button type="button" class="quiet" id="btnSkip" data-i18n="skip">Atla</button>
+          <button type="button" class="grow" id="btnWifi" data-i18n="connect">Bağlan</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+(async function guard(){
+  const s=await fetch('/cgi-bin/login.sh?action=status',{credentials:'same-origin'}).then(r=>r.json()).catch(()=>({authenticated:0,setup_required:1}));
+  if(!s.authenticated){location.href='/';return}
+  // First-run wizard: no sidebar (avoids nested menus). After setup, full nav.
+  if(!s.setup_required){
+    MPNav.mount('setup');
+    const panel=document.getElementById('setupPanelLink');
+    if(panel) panel.style.display='none';
+  }
+  fetch('/cgi-bin/device.sh?action=get',{credentials:'same-origin'}).then(r=>r.json()).then(x=>{
+    const raw=String(x.mac||'').replace(/[^0-9a-f]/gi,'');
+    setupMac.textContent=(raw.match(/../g)||[]).join(':').toUpperCase()||'—';
+  }).catch(()=>{});
+  if(wmode) wmode.value='station';
+})();
+
+const statusEl=document.getElementById('statusMsg');
+const statusText=document.getElementById('statusText');
+const statusIco=document.getElementById('statusIco');
+
+function ensure(){if(MPApi.token())return 1;MPApi.setToken();return!!MPApi.token()}
+async function post(u){if(!ensure())throw Error(t('tokenNeed'));return MPApi.req(u,true)}
+
+function setMsg(text,kind,busy){
+  if(!text){statusEl.className='msg';statusText.textContent='';statusIco.textContent='';return}
+  const k=kind||'info';
+  statusEl.className='msg show '+k+(busy?' busy':'');
+  statusIco.textContent=busy?'':(k==='ok'?'✓':k==='err'?'!':'i');
+  statusText.textContent=text;
+  statusEl.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+async function finishSetup(){
+  try{ await post('/cgi-bin/setup_done.sh'); }catch(_e){}
+  localStorage.setItem('mpower-skip-setup','1');
+  location.href='/';
+}
+
+document.getElementById('btnSkip').onclick=()=>finishSetup();
+
+document.querySelectorAll('.show-pw').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const inp=document.getElementById(btn.dataset.for);
+    if(!inp) return;
+    const show=inp.type==='password';
+    inp.type=show?'text':'password';
+    btn.textContent=show?t('hide'):t('show');
+  });
+});
+
+security.onchange=()=>{psk.disabled=security.value==='open';if(security.value==='open')psk.value=''};
+
+async function scan(){
+  setMsg(t('scanning'),'info',true);
+  btnScan.disabled=true;
+  try{
+    const r=await fetch('/cgi-bin/wifi.sh?action=scan',{credentials:'same-origin'});
+    const raw=await r.text();
+    if(!raw||!raw.trim()) throw new Error('empty');
+    const x=JSON.parse(raw);
+    const list=x.networks||[];
+    const he=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    net.innerHTML='<option value="">'+(list.length?t('netsFound',{n:list.length}):t('noNets'))+'</option>'+ 
+      list.map(n=>{const o=typeof n==='string'?{ssid:n}:n;const meta=[o.channel?('CH '+o.channel):'',o.signal?o.signal+' dBm':'',o.quality||''].filter(Boolean).join(' · ');return '<option value="'+he(o.ssid)+'">'+he(o.ssid)+(meta?' · '+he(meta):'')+'</option>'}).join('');
+    setMsg(list.length?t('listed',{n:list.length}):t('scanEmpty'),'info');
+  }catch(e){
+    setMsg(t('scanFail')+': '+(e.message||e),'err');
+  }
+  btnScan.disabled=false;
+}
+btnScan.onclick=scan;
+net.onchange=e=>{if(e.target.value)ssid.value=e.target.value};
+
+async function pollResult(want, maxMs){
+  const deadline=Date.now()+(maxMs||120000);
+  let fetchFails=0;
+  while(Date.now()<deadline){
+    try{
+      const st=await fetch('/cgi-bin/wifi.sh?action=status',{credentials:'same-origin'}).then(r=>r.json());
+      fetchFails=0;
+      const r=(st&&st.result)||{};
+      if(r.state==='ok'){
+        if(!st.ip || st.ip==='192.168.1.50' || r.reason==='fallback'){
+          setMsg(t('wifiFailDhcp'),'err');
+          return 'fail';
+        }
+        setMsg(st.ip?t('wifiOkIp',{ip:st.ip}):t('wifiOk'),'ok');
+        return 'ok';
+      }
+      if(r.state==='fail'){
+        const held=!!(st.hold||r.hold);
+        const attempt=Number(r.attempt||0);
+        if(r.reason==='dhcp') setMsg(t('wifiFailDhcp'),'err');
+        else if(r.reason==='bad_password') setMsg(t('wifiFailBadPw'),'err');
+        else if(held || attempt>=2) setMsg(t('wifiFailGaveUp'),'err');
+        else if(r.reason==='associate') setMsg(t('wifiFailAssoc',{ssid:want}),'err');
+        else if(r.reason==='wpa_start') setMsg(t('wifiFailWpa'),'err');
+        else setMsg(t('wifiFailGeneric',{reason:r.reason||r.detail||'error'}),'err');
+        return 'fail';
+      }
+      const n=Number(r.attempt||0);
+      setMsg(n>0?t('wifiWaitTry',{n:n}):t('wifiWait'),'info',true);
+    }catch(_e){
+      fetchFails++;
+      setMsg(t('wifiWait'),'info',true);
+    }
+    await new Promise(r=>setTimeout(r,2000));
+  }
+  if(fetchFails>=2){
+    // AP stayed down for the whole poll → STA likely linked.
+    setMsg(t('wifiMaybeOk'),'ok');
+    return 'ok';
+  }
+  setMsg(t('wifiFailTimeout'),'err');
+  return 'fail';
+}
+
+btnWifi.onclick=async()=>{
+  if(!ssid.value.trim()){setMsg(t('ssidNeed'),'err');return}
+  if(security.value==='wpa'&&!psk.value){setMsg(t('passNeed'),'err');return}
+  const want=ssid.value.trim();
+  if(!ensure()) return;
+  setMsg(t('connecting'),'info',true);
+  btnWifi.disabled=true;
+  try{
+    // Always DHCP for first setup
+    try{
+      const np=new URLSearchParams({action:'set',mode:'dhcp',ip:'',netmask:'',gateway:'',dns:'',dns2:''});
+      await post('/cgi-bin/network.sh?'+np);
+    }catch(_e){}
+    const p=new URLSearchParams({
+      action:'connect',ssid:want,security:security.value,psk:psk.value,
+      mode:(wmode&&wmode.value)||'station',token:MPApi.token()
+    });
+    const r=await fetch('/cgi-bin/wifi.sh?'+p,{method:'POST',credentials:'same-origin'});
+    const x=await r.json().catch(()=>({ok:true}));
+    if(x.ok===false){
+      setMsg(x.error||t('wifiErr'),'err');
+    }else{
+      setMsg(t('wifiWait'),'info',true);
+      const res=await pollResult(want, 120000);
+      if(res==='ok') setTimeout(finishSetup, 800);
+    }
+  }catch(e){
+    const m=String(e&&e.message||e);
+    if(/failed to fetch|networkerror|load failed/i.test(m)){
+      setMsg(t('wifiWait'),'info',true);
+      const res=await pollResult(want, 120000);
+      if(res==='ok') setTimeout(finishSetup, 800);
+    }else setMsg(m,'err');
+  }
+  btnWifi.disabled=false;
+};
+</script>
+</body>
+</html>

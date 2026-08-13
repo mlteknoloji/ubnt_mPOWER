@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="tr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Zamanlama · NetRelayMP</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script src="i18n.js"></script>
+<body data-page-title="schedTitle">
+<div class="app" id="appShell">
+  <main class="main">
+    <div class="sched-shell">
+      <div class="topbar">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <button type="button" class="menu-btn" id="menuBtn" aria-label="Menü">☰</button>
+          <div>
+            <h2 style="margin:0" data-i18n="schedTitle">Zamanlama</h2>
+            <div class="sub" data-i18n="schedSub">Otomatik aç/kapa · pulse · güneş</div>
+          </div>
+        </div>
+        <a class="quiet" href="/" style="padding:10px 14px;border-radius:10px;background:#243352;color:#fff" data-i18n="panel">Panel</a>
+      </div>
+
+      <p class="note" style="margin:0 0 12px" data-i18n="schedNote">Saat için Ayarlar’da NTP/konum gerekir. Güneş kuralları lat/lon kullanır.</p>
+
+      <div class="ping-stat" id="sunInfo" style="margin-bottom:12px">
+        <div class="k" data-i18n="selectedLocation">Selected location</div>
+        <div class="v" id="sunCoords">&mdash;</div>
+        <div class="k" data-i18n="todaySunTimes">Today</div>
+        <div class="v"><span data-i18n="kindRise">Sunrise</span> <b id="sunriseTime">&mdash;</b> &middot; <span data-i18n="kindSet">Sunset</span> <b id="sunsetTime">&mdash;</b></div>
+      </div>
+
+      <form class="card sched-form" id="f" onsubmit="add(event)">
+        <div class="field-grid">
+          <div>
+            <label for="kind" data-i18n="kind">Tür</label>
+            <select name="kind" id="kind">
+              <option value="clock" data-i18n="kindClock">Saat</option>
+              <option value="pulse" data-i18n="kindPulse">Pulse</option>
+              <option value="sunrise" data-i18n="kindRise">Gün doğumu</option>
+              <option value="sunset" data-i18n="kindSet">Gün batımı</option>
+            </select>
+          </div>
+          <div class="kind-extra" id="boxTime">
+            <label for="time" data-i18n="time">Saat</label>
+            <input type="time" name="time" id="time" value="07:00">
+          </div>
+          <div>
+            <label for="port" data-i18n="port">Priz</label>
+            <select name="port" id="port">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="all">Tümü</option>
+            </select>
+          </div>
+          <div class="kind-extra" id="boxDur" hidden>
+            <label for="duration" data-i18n="pulseSec">Pulse süresi (sn)</label>
+            <input name="duration" id="duration" inputmode="numeric" value="10" placeholder="10">
+          </div>
+          <div class="kind-extra" id="boxOff" hidden>
+            <label for="offset" data-i18n="sunOffset">Güneş ofseti (dk)</label>
+            <input name="offset" id="offset" inputmode="numeric" value="0" placeholder="0 · örn. -30">
+          </div>
+        </div>
+
+        <div class="sched-tog-block">
+          <label class="tog">
+            <input type="checkbox" id="stateOn" checked>
+            <span class="tog-track"></span>
+            <span class="tog-text" id="stateLab">Prizi aç</span>
+          </label>
+        </div>
+        <input type="hidden" name="state" id="state" value="on">
+
+        <label style="margin-top:4px" data-i18n="days">Günler</label>
+        <div class="day-quick">
+          <button type="button" class="quiet" id="btnAllDays" data-i18n="everyDay">Her gün</button>
+          <button type="button" class="quiet" id="btnWeek" data-i18n="weekdays">Hafta içi</button>
+        </div>
+        <div class="sched-tog-block" id="days">
+          <label class="tog"><input type="checkbox" value="1" checked><span class="tog-track"></span><span class="tog-text" data-day="1">Pazartesi</span></label>
+          <label class="tog"><input type="checkbox" value="2" checked><span class="tog-track"></span><span class="tog-text" data-day="2">Salı</span></label>
+          <label class="tog"><input type="checkbox" value="3" checked><span class="tog-track"></span><span class="tog-text" data-day="3">Çarşamba</span></label>
+          <label class="tog"><input type="checkbox" value="4" checked><span class="tog-track"></span><span class="tog-text" data-day="4">Perşembe</span></label>
+          <label class="tog"><input type="checkbox" value="5" checked><span class="tog-track"></span><span class="tog-text" data-day="5">Cuma</span></label>
+          <label class="tog"><input type="checkbox" value="6" checked><span class="tog-track"></span><span class="tog-text" data-day="6">Cumartesi</span></label>
+          <label class="tog"><input type="checkbox" value="0" checked><span class="tog-track"></span><span class="tog-text" data-day="0">Pazar</span></label>
+        </div>
+        <input type="hidden" name="days" id="daysVal" value="*">
+
+        <div class="toolbar" style="margin:4px 0 0">
+          <button class="grow" style="flex:1" id="submitBtn" data-i18n="add">Ekle</button>
+          <button type="button" class="quiet" id="cancelEdit" hidden onclick="resetEdit()" data-i18n="cancel">İptal</button>
+        </div>
+      </form>
+
+      <p id="note" class="note" style="margin:10px 0 0"></p>
+      <div id="list" class="sched-list"></div>
+    </div>
+  </main>
+</div>
+<script>
+MPNav.mount('schedule');
+
+function kindMap(){return{clock:t('kindClock'),pulse:t('kindPulse'),sunrise:t('kindRise'),sunset:t('kindSet')}}
+let rules=[], editingId=0;
+const DAYN_TR={0:'Paz',1:'Pzt',2:'Sal',3:'Çar',4:'Per',5:'Cum',6:'Cmt'};
+const DAYN_EN={0:'Sun',1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat'};
+const DAYF_TR={0:'Pazar',1:'Pazartesi',2:'Salı',3:'Çarşamba',4:'Perşembe',5:'Cuma',6:'Cumartesi'};
+const DAYF_EN={0:'Sunday',1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+function dayN(){return lang()==='en'?DAYN_EN:DAYN_TR}
+function dayF(){return lang()==='en'?DAYF_EN:DAYF_TR}
+
+document.querySelectorAll('[data-day]').forEach(el=>{
+  el.textContent=dayF()[el.getAttribute('data-day')]||el.textContent;
+});
+
+function syncState(){
+  state.value=stateOn.checked?'on':'off';
+  stateLab.textContent=stateOn.checked?t('on'):t('off');
+}
+stateOn.onchange=syncState;
+syncState();
+
+function syncKind(){
+  const k=kind.value;
+  boxTime.hidden=!(k==='clock'||k==='pulse');
+  boxDur.hidden=k!=='pulse';
+  boxOff.hidden=!(k==='sunrise'||k==='sunset');
+}
+kind.onchange=syncKind;
+syncKind();
+
+function readDays(){
+  const boxes=[...days.querySelectorAll('input[type=checkbox]')];
+  const on=boxes.filter(b=>b.checked).map(b=>b.value);
+  if(on.length===7||on.length===0) return '*';
+  return on.sort().join('');
+}
+function setDays(pattern){
+  const boxes=[...days.querySelectorAll('input[type=checkbox]')];
+  if(pattern==='*'){boxes.forEach(b=>b.checked=true);return}
+  if(pattern==='week'){boxes.forEach(b=>b.checked='12345'.includes(b.value));return}
+  boxes.forEach(b=>b.checked=String(pattern).includes(b.value));
+}
+btnAllDays.onclick=()=>setDays('*');
+btnWeek.onclick=()=>setDays('week');
+
+function fmtDays(d){
+  if(!d||d==='*') return t('everyDay');
+  const dn=dayN();
+  return String(d).split('').map(x=>dn[x]||x).join(' · ');
+}
+function fmtWhen(s){
+  const KIND=kindMap();
+  if(s.kind==='sunrise'||s.kind==='sunset'){
+    const o=+s.offset||0;
+    const sign=o>0?'+':'';
+    return KIND[s.kind]+(o?` ${sign}${o} ${t('minAbbrev')}`:'');
+  }
+  return s.time||'—';
+}
+
+function rowHtml(s){
+  const KIND=kindMap();
+  const st=s.state==='on'?'on':'off';
+  const stLab=s.state==='on'?t('on'):t('off');
+  let extra='';
+  if(s.kind==='pulse'&&+s.duration) extra=` · ${s.duration}s pulse`;
+  const port=s.port==='all'?(t('outlet')+' *'):(t('outlet')+' '+s.port);
+  return `<article class="sched-row">
+    <div>
+      <p class="title"><span class="pill">${KIND[s.kind]||s.kind}</span> ${fmtWhen(s)}
+        <span class="pill ${st}">${stLab}</span></p>
+      <p class="meta">${port}${extra}<br>${fmtDays(s.days)}</p>
+    </div>
+    <div class="toolbar"><button type="button" class="quiet" onclick="editRule(${s.id})">${t('edit')}</button><button type="button" class="off" onclick="del(${s.id})">${t('del')}</button></div>
+  </article>`;
+}
+
+async function load(){
+  note.textContent='';
+  try{
+    const x=await MPApi.req('/cgi-bin/schedules.sh');
+    rules=x.schedules||[];
+    list.innerHTML=rules.length?rules.map(rowHtml).join(''):'<div class="sched-empty">'+t('noRules')+'</div>';
+  }catch(e){note.textContent=e.message||e}
+}
+
+async function loadSunInfo(){
+  try{
+    const now=new Date();
+    const date=new URLSearchParams({
+      year:now.getFullYear(),
+      month:now.getMonth()+1,
+      day:now.getDate()
+    });
+    const x=await MPApi.req('/cgi-bin/location.sh?'+date);
+    sunCoords.textContent=`${x.lat}, ${x.lon} · UTC${+x.tz>=0?'+':''}${x.tz}`;
+    sunriseTime.textContent=x.sunrise||'—';
+    sunsetTime.textContent=x.sunset||'—';
+    sunInfo.className='ping-stat '+(x.synced?'ok':'warn');
+  }catch(e){
+    sunCoords.textContent=t('statusFail');
+  }
+}
+
+async function add(e){
+  e.preventDefault();
+  syncState();
+  if(kind.value==='pulse'&&!(+duration.value>0)){note.textContent=t('pulseNeedDur');return}
+  try{
+    const form=e.target;
+    const data=new FormData(form);
+    data.set('days',readDays());
+    data.set('state',state.value);
+    if(kind.value!=='pulse') data.set('duration','0');
+    if(kind.value!=='sunrise'&&kind.value!=='sunset') data.set('offset','0');
+    if(kind.value==='sunrise'||kind.value==='sunset') data.set('time','sun');
+    const action=editingId?'update':'add';
+    if(editingId)data.set('id',editingId);
+    await MPApi.req('/cgi-bin/schedules.sh?action='+action+'&'+new URLSearchParams(data),true);
+    note.textContent=editingId?t('updated'):t('added');
+    resetEdit(false);
+    load();
+  }catch(err){note.textContent=err.message||err}
+}
+
+function editRule(id){
+  const s=rules.find(x=>+x.id===+id); if(!s)return;
+  editingId=+id; kind.value=s.kind||'clock'; time.value=s.time==='sun'?'07:00':(s.time||'07:00');
+  port.value=s.port||'1'; duration.value=s.duration||0; offset.value=s.offset||0;
+  stateOn.checked=s.state==='on'; syncState(); setDays(s.days||'*'); syncKind();
+  submitBtn.textContent=t('update'); cancelEdit.hidden=false; f.scrollIntoView({behavior:'smooth'});
+}
+
+function resetEdit(clearNote=true){
+  editingId=0; f.reset(); time.value='07:00'; duration.value='10'; offset.value='0';
+  stateOn.checked=true; syncState(); setDays('*'); syncKind();
+  submitBtn.textContent=t('add'); cancelEdit.hidden=true; if(clearNote)note.textContent='';
+}
+
+async function del(id){
+  if(!confirm(t('confirmDeleteRule'))) return;
+  try{await MPApi.req('/cgi-bin/schedules.sh?action=delete&id='+id,true);if(editingId===+id)resetEdit();load()}
+  catch(err){note.textContent=err.message||err}
+}
+
+load();
+loadSunInfo();
+</script>
+</body>
+</html>

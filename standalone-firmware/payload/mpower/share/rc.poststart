@@ -1,0 +1,21 @@
+#!/bin/sh
+# mPower custom startup hook (also embedded under mpower/share for restore).
+# Stock path: delaystart.sh sleep 180 → here. early-cron usually preempts that.
+ROOT=/etc/persistent/mpower
+[ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" rc.poststart
+if [ -x "$ROOT/bin/boot-mark.sh" ]; then
+  parent=$(awk '{print $4}' /proc/$$/stat 2>/dev/null)
+  pcmd=$(tr '\000' ' ' < "/proc/$parent/cmdline" 2>/dev/null)
+  "$ROOT/bin/boot-mark.sh" "rc.poststart.parent pid=$parent cmd=$pcmd"
+fi
+
+if [ -f /tmp/mpower-early-cron.done ]; then
+  [ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" rc.poststart.skip.early
+  exit 0
+fi
+
+[ -x "$ROOT/bin/button-watch.sh" ] && \
+  /bin/sh "$ROOT/bin/button-watch.sh" >>/tmp/mpower-button.log 2>&1 &
+
+[ -x "$ROOT/bin/mpower-service.sh" ] && \
+  /etc/persistent/mpower/bin/mpower-service.sh start >/tmp/mpower-standalone.log 2>&1 &

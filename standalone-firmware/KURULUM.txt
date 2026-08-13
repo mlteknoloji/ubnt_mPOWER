@@ -1,0 +1,17 @@
+Detayli dokumanlar / Full docs:
+  docs/KURULUM-TR.md  docs/KURULUM-EN.md
+  docs/MQTT-TR.md     docs/MQTT-EN.md
+  docs/HOMEKIT-TR.md  docs/HOMEKIT-EN.md
+  docs/SAHA-TR.md     docs/SAHA-EN.md
+  brochure/index.html   (tanitim / satis brosuru)
+  README.md
+
+GitHub surum:
+  (yerel) scripts\github-gonder.bat
+  scripts\github-gonder.bat "Aciklama mesaji"
+
+Kisa ozet - Quick:
+  deploy.ps1 -Target IP [-KeepToken]
+  UI http://IP:8088  admin/mltek
+  Factory: yalnız Ayarlar → Fabrika ayarları; fiziksel düğme 2 sn reboot, uzun basmayın
+  MQTT/Saha: docs/MQTT-*.md  docs/SAHA-*.md

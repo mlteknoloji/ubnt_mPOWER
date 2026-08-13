@@ -1,0 +1,22 @@
+# Deploy artifacts / secrets
+açıklama.txt
+standalone-firmware/deploy-results-*.csv
+**/api.token
+**/admin.pass
+**/mqtt.conf
+**/wifi.conf
+**/network.conf
+**/device.conf
+*.csv
+.DS_Store
+Thumbs.db
+.env
+*.pem
+standalone-firmware/firmware/*.bin
+!standalone-firmware/firmware/MF.v2.1.11.bin
+standalone-firmware/dist/*.tar
+
+# Local-only GitHub helper (not published)
+scripts/github-gonder.bat
+github-gonder.bat
+github-release.bat

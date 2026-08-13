@@ -1,0 +1,17 @@
+* text=auto
+*.sh text eol=lf
+*.awk text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.conf text eol=lf
+*.json text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+VERSION text eol=lf
+standalone-firmware/install.sh text eol=lf
+standalone-firmware/payload/rc.poststart text eol=lf
+standalone-firmware/payload/rc.prestart text eol=lf
+*.bin binary
+*.png binary
+*.tar binary

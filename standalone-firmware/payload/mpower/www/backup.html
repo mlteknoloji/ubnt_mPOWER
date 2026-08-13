@@ -1,0 +1,68 @@
+<!doctype html><html lang=tr><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Yedek / Saha</title><link rel=stylesheet href=style.css><script src=i18n.js></script>
+<body data-page-title="bakTitle"><div class="app" id="appShell"><main class="main">
+<div class="topbar"><div style="display:flex;gap:10px"><button class="menu-btn" id="menuBtn">☰</button><div><h2 data-i18n="bakTitle">Yedek & Saha</h2><div class="sub" data-i18n="bakSub">Filo kopyalama / sağlık</div></div></div><a href="/" style="padding:10px 14px;border-radius:10px;background:#243352;color:#fff" data-i18n="panel">Panel</a></div>
+
+<section class="card">
+ <h3 data-i18n="health">Sağlık</h3>
+ <pre class="code" id=health>…</pre>
+ <button class=quiet onclick="loadHealth()" data-i18n="refresh">Yenile</button>
+</section>
+
+<section class="card">
+ <h3 data-i18n="bakExport">Ayar yedeği indir</h3>
+ <label class="tog"><input type=checkbox id=secrets><span class="tog-track"></span><span class="tog-text" data-i18n="bakSecrets">Wi‑Fi/MQTT parolası ve API token dahil</span></label>
+ <button onclick="exp()" data-i18n="bakDl">JSON indir</button>
+ <p class="note" data-i18n="bakHint">Aynı Wi‑Fi/MQTT profilini diğer cihazlara basmak için bir master yedeği kullanın.</p>
+</section>
+
+<section class="card">
+ <h3 data-i18n="bakImport">Yedeği geri yükle</h3>
+ <input type=file id=file accept=".json,application/json">
+ <button onclick="imp()" data-i18n="bakImp">İçe aktar</button>
+ <p id=note class=note></p>
+</section>
+
+<section class="card">
+ <h3 data-i18n="bakField">MQTT / HA saha kontrol</h3>
+ <ol class="note" style="line-height:1.7" id="bakSteps"></ol>
+ <p class="note" data-i18n="bakDocs">TR: docs/SAHA-TR.md · EN: docs/SAHA-EN.md</p>
+</section>
+</main></div>
+<script>
+MPNav.mount('backup');
+(function(){
+  const steps=lang()==='en'?[
+    'Settings → device name / MQTT broker / HA discovery',
+    'Wi‑Fi linked and IP present (health: wifi_ip)',
+    'Clock synced (NTP or browser time)',
+    "mosquitto_sub -t 'mpower/mltek/MAC/#' -v",
+    'Command: {"action":"on","port":1} → mpower/mltek/MAC/cmd',
+    'HA should see discovery on the same broker'
+  ]:[
+    'Ayarlar → cihaz adı / MQTT broker / HA discovery',
+    'Wi‑Fi bağlı ve IP var (sağlıkta wifi_ip)',
+    'Saat senkron (NTP veya tarayıcı saati)',
+    "mosquitto_sub -t 'mpower/mltek/MAC/#' -v",
+    'Komut: {"action":"on","port":1} → mpower/mltek/MAC/cmd',
+    'HA aynı broker’da discovery görsün'
+  ];
+  bakSteps.innerHTML=steps.map(s=>'<li>'+s+'</li>').join('');
+})();
+async function loadHealth(){health.textContent=JSON.stringify(await fetch('/cgi-bin/backup.sh?action=status').then(r=>r.json()),null,2)}
+async function exp(){
+  if(!MPApi.token()) MPApi.setToken();
+  const u='/cgi-bin/backup.sh?action=export&secrets='+(secrets.checked?1:0)+'&token='+encodeURIComponent(MPApi.token());
+  const r=await fetch(u,{method:'POST',credentials:'same-origin'});
+  const txt=await r.text();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'})); a.download='netrelaymp-backup.json'; a.click();
+}
+async function imp(){
+  if(!file.files[0]) return;
+  if(!MPApi.token()) MPApi.setToken();
+  const buf=await file.files[0].arrayBuffer();
+  const r=await fetch('/cgi-bin/backup.sh?action=import&token='+encodeURIComponent(MPApi.token()),{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:buf});
+  note.textContent=JSON.stringify(await r.json()); loadHealth();
+}
+loadHealth(); setInterval(loadHealth,8000);
+</script></body></html>

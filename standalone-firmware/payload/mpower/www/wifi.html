@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="tr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wi‑Fi · NetRelayMP</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script src="i18n.js"></script>
+<body data-page-title="wifiTitle">
+<div class="app" id="appShell">
+  <main class="main">
+    <div class="setup-shell">
+      <div class="topbar setup-hero">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <button type="button" class="menu-btn" id="menuBtn" aria-label="Menü">☰</button>
+          <div class="brand" style="padding:0">
+            <div class="brand-badge">NR</div>
+            <div>
+              <h1 style="margin:0;font-size:1.15rem" data-i18n="wifiTitle">Wi‑Fi</h1>
+              <p style="margin:2px 0 0;color:var(--muted);font-size:.82rem" data-i18n="wifiSub">Ağ tara · bağlan</p>
+            </div>
+          </div>
+        </div>
+        <a class="quiet" href="/" style="padding:10px 14px;border-radius:10px;background:#243352;color:#fff;white-space:nowrap" data-i18n="panel">Panel</a>
+      </div>
+
+      <div class="setup-status" aria-live="polite">
+        <div class="msg" id="statusMsg"><span class="msg-ico" id="statusIco"></span><span class="msg-body" id="statusText"></span></div>
+      </div>
+
+      <div class="ping-stats" style="margin-bottom:14px">
+        <div class="ping-stat" id="sLink"><div class="k" data-i18n="link">Bağlantı</div><div class="v" id="vSsid">—</div></div>
+        <div class="ping-stat" id="sIp"><div class="k">IP (ath0)</div><div class="v" id="vIp">—</div></div>
+        <div class="ping-stat"><div class="k">Access Point</div><div class="v" id="vAp">—</div></div>
+        <div class="ping-stat" id="sRec"><div class="k" data-i18n="recoveryIp">Kurtarma IP</div><div class="v" id="vRec">192.168.2.20</div></div>
+      </div>
+
+      <section class="card">
+        <h3 data-i18n="wifiTitle">Wi‑Fi</h3>
+        <p class="setup-lead" data-i18n="wifiLead">Cihazı ev/iş ağına alın. Bağlantı koparsa kısa süre http://192.168.2.20:8088 üzerinden erişebilirsiniz (kurtarma AP).</p>
+
+        <div class="toolbar">
+          <button type="button" class="quiet" id="btnScan" data-i18n="scan">Ağları tara</button>
+          <button type="button" class="quiet" id="btnRefresh" data-i18n="refresh">Yenile</button>
+        </div>
+
+        <label for="net" data-i18n="foundNets">Bulunan ağlar</label>
+        <select id="net"><option value="" data-i18n="pressScan">Tarama için butona basın</option></select>
+
+        <label for="ssid" data-i18n="ssid">SSID</label>
+        <input id="ssid" maxlength="32" autocomplete="off" placeholder="Ağ adı" required>
+
+        <div class="field-grid">
+          <div>
+            <label for="wmode" data-i18n="wifiMode">Mod</label>
+            <select id="wmode">
+              <option value="wds" data-i18n="modeWds">Station WDS</option>
+              <option value="station" selected data-i18n="modeStation">Station</option>
+            </select>
+          </div>
+          <div>
+            <label for="security" data-i18n="security">Güvenlik</label>
+            <select id="security">
+              <option value="wpa" data-i18n="wpa">WPA / WPA2</option>
+              <option value="open" data-i18n="openNet">Açık (parolasız)</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="psk" data-i18n="wifiPass">Wi‑Fi parolası</label>
+        <div class="pw-wrap">
+          <input id="psk" type="password" maxlength="63" autocomplete="current-password" placeholder="••••••••">
+          <button type="button" class="quiet show-pw" data-for="psk" data-i18n="show">Göster</button>
+        </div>
+
+        <div class="setup-actions">
+          <button type="button" class="grow" id="btnConnect" data-i18n="connect">Bağlan</button>
+        </div>
+      </section>
+
+      <p class="note" style="margin:12px 0 0" data-i18n="wifiNote">WPA parolası 8–63 karakter. Bağlandıktan sonra IP değişebilir; gerekirse NRfinder veya kurtarma IP kullanın.</p>
+    </div>
+  </main>
+</div>
+<script>
+MPNav.mount('wifi');
+if(wmode) wmode.value='station';
+
+function setMsg(text,kind,busy){
+  if(!text){statusMsg.className='msg';statusText.textContent='';statusIco.textContent='';return}
+  const k=kind||'info';
+  statusMsg.className='msg show '+k+(busy?' busy':'');
+  statusIco.textContent=busy?'':(k==='ok'?'✓':k==='err'?'!':'i');
+  statusText.textContent=text;
+  statusMsg.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+async function get(a){
+  const r=await fetch('/cgi-bin/wifi.sh?action='+a,{credentials:'same-origin'});
+  const t=await r.text();
+  if(!t||!t.trim()) throw new Error('Boş yanıt (action='+a+')');
+  try{return JSON.parse(t)}catch(e){throw new Error('Geçersiz JSON: '+t.slice(0,80))}
+}
+
+function isRealStaIp(ip){
+  return !!(ip && ip!=='192.168.1.50');
+}
+
+function resultMessage(x, wantSsid){
+  const r=(x&&x.result)||{};
+  const state=r.state||'';
+  const reason=r.reason||'';
+  const ssid=wantSsid||r.ssid||x.ssid||'';
+  const attempt=Number(r.attempt||0);
+  const held=!!(x&&x.hold)||!!r.hold;
+  if(state==='ok'){
+    if(!isRealStaIp(x.ip) || reason==='fallback') return {kind:'err', text:t('wifiFailDhcp')};
+    return {kind:'ok', text:x.ip?t('wifiOkIp',{ip:x.ip}):t('wifiOk')};
+  }
+  if(state==='fail'){
+    if(reason==='dhcp'||reason==='fallback') return {kind:'err', text:t('wifiFailDhcp')};
+    if(reason==='bad_password') return {kind:'err', text:t('wifiFailBadPw')};
+    if(held || attempt>=2) return {kind:'err', text:t('wifiFailGaveUp')};
+    if(reason==='associate') return {kind:'err', text:t('wifiFailAssoc',{ssid:ssid||'—'})};
+    if(reason==='wpa_start') return {kind:'err', text:t('wifiFailWpa')};
+    return {kind:'err', text:t('wifiFailGeneric',{reason:reason||r.detail||'error'})};
+  }
+  if(state==='running'){
+    if(attempt>0) return {kind:'info', text:t('wifiWaitTry',{n:attempt}), busy:true};
+    return {kind:'info', text:t('wifiWait'), busy:true};
+  }
+  return null;
+}
+
+async function waitConnectResult(wantSsid, maxMs){
+  const deadline=Date.now()+(maxMs||120000);
+  let last=null;
+  let fetchFails=0;
+  while(Date.now()<deadline){
+    try{
+      const x=await get('status');
+      fetchFails=0;
+      last=x;
+      const linked=!!(x.linked||(x.ap&&x.ap!=='Not-Associated'&&x.ap!=='00:00:00:00:00:00'));
+      vSsid.textContent=x.ssid||t('notLinked');
+      vIp.textContent=x.ip||'—';
+      vAp.textContent=x.ap||'—';
+      if(vRec){
+        vRec.textContent=x.recovery_ap?('192.168.2.20 · '+t('recoveryOn')):('192.168.2.20 · '+t('recoveryOff'));
+      }
+      if(sRec) sRec.className='ping-stat '+(x.recovery_ap?'warn':'ok');
+      sLink.className='ping-stat '+(linked?'ok':'warn');
+      sIp.className='ping-stat '+(isRealStaIp(x.ip)?'ok':(linked?'warn':''));
+
+      const msg=resultMessage(x, wantSsid);
+      if(msg){
+        setMsg(msg.text, msg.kind, !!msg.busy);
+        if(msg.kind==='ok'||msg.kind==='err') return msg;
+      }else if(linked && isRealStaIp(x.ip)){
+        setMsg(t('wifiOkIp',{ip:x.ip}),'ok');
+        return {kind:'ok'};
+      }else{
+        setMsg(t('wifiWait'),'info',true);
+      }
+    }catch(_e){
+      fetchFails++;
+      // AP is down during the radio hop; wait out the full timeout.
+      // Only a lasting drop (real STA IP) should look like success.
+      setMsg(t('wifiWait'),'info',true);
+    }
+    await new Promise(r=>setTimeout(r,2000));
+  }
+  if(last){
+    const msg=resultMessage(last, wantSsid);
+    if(msg && msg.kind==='err'){ setMsg(msg.text,'err'); return msg; }
+    if(last.linked && !isRealStaIp(last.ip)){ setMsg(t('wifiFailDhcp'),'err'); return {kind:'err'}; }
+    if(last.linked && isRealStaIp(last.ip)){ setMsg(t('wifiOkIp',{ip:last.ip}),'ok'); return {kind:'ok'}; }
+  }
+  setMsg(t('wifiFailTimeout'),'err');
+  return {kind:'err'};
+}
+
+async function stat(){
+  try{
+    const x=await get('status');
+    const linked=!!(x.linked||(x.ssid&&x.ssid!=='off'&&x.ssid!=='any'&&x.ap&&x.ap!=='Not-Associated'));
+    vSsid.textContent=x.ssid||t('notLinked');
+    vIp.textContent=x.ip||'—';
+    vAp.textContent=x.ap||'—';
+    if(vRec){
+      vRec.textContent=x.recovery_ap?('192.168.2.20 · '+t('recoveryOn')):('192.168.2.20 · '+t('recoveryOff'));
+    }
+    if(sRec) sRec.className='ping-stat '+(x.recovery_ap?'warn':'ok');
+    sLink.className='ping-stat '+(linked?'ok':'warn');
+    sIp.className='ping-stat '+(isRealStaIp(x.ip)?'ok':(linked?'warn':''));
+    const msg=resultMessage(x);
+    if(msg && msg.kind==='err') setMsg(msg.text,'err');
+    else if(linked && !isRealStaIp(x.ip)) setMsg(t('wifiNoIp'),'info');
+    if(wmode && (x.mode==='wds'||x.mode==='station')) wmode.value=x.mode;
+  }catch(e){
+    setMsg(t('statusFail'),'err');
+  }
+}
+
+async function scan(){
+  setMsg(t('scanning'),'info',true);
+  btnScan.disabled=true;
+  try{
+    const x=await get('scan');
+    const list=x.networks||[];
+    const he=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    net.innerHTML='<option value="">'+(list.length?t('netsFound',{n:list.length}):t('noNets'))+'</option>'+ 
+      list.map(n=>{const o=typeof n==='string'?{ssid:n}:n;const meta=[o.channel?('CH '+o.channel):'',o.signal?o.signal+' dBm':'',o.quality||''].filter(Boolean).join(' · ');return '<option value="'+he(o.ssid)+'">'+he(o.ssid)+(meta?' · '+he(meta):'')+'</option>'}).join('');
+    setMsg(list.length?t('listed',{n:list.length}):t('scanEmpty'),'info');
+  }catch(e){
+    setMsg(t('scanFail')+': '+(e.message||e),'err');
+  }
+  btnScan.disabled=false;
+}
+
+document.querySelectorAll('.show-pw').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const inp=document.getElementById(btn.dataset.for);
+    if(!inp) return;
+    const show=inp.type==='password';
+    inp.type=show?'text':'password';
+    btn.textContent=show?t('hide'):t('show');
+  });
+});
+
+net.onchange=e=>{if(e.target.value) ssid.value=e.target.value};
+security.onchange=()=>{
+  psk.disabled=security.value==='open';
+  if(security.value==='open') psk.value='';
+};
+
+btnScan.onclick=scan;
+btnRefresh.onclick=()=>{stat(); setMsg(t('statusUpdated'),'info')};
+
+btnConnect.onclick=async()=>{
+  if(!ssid.value.trim()){setMsg(t('ssidNeed'),'err');return}
+  if(security.value==='wpa'&&!psk.value){setMsg(t('passNeed'),'err');return}
+  if(security.value==='wpa'&&(psk.value.length<8||psk.value.length>63)){
+    setMsg(t('wpaLen'),'err');return
+  }
+  if(!MPApi.token()) MPApi.setToken();
+  const want=ssid.value.trim();
+  setMsg(t('connecting'),'info',true);
+  btnConnect.disabled=true;
+  try{
+    const p=new URLSearchParams({
+      action:'connect',ssid:want,security:security.value,psk:psk.value,
+      mode:wmode.value||'station',token:MPApi.token()
+    });
+    const r=await fetch('/cgi-bin/wifi.sh?'+p,{method:'POST',credentials:'same-origin'});
+    const x=await r.json().catch(()=>({ok:true,poll:true}));
+    if(x.ok===false){
+      setMsg(x.error||t('wifiErr'),'err');
+    }else{
+      setMsg(t('wifiWait'),'info',true);
+      await waitConnectResult(want, 120000);
+    }
+  }catch(e){
+    // Radio often drops recovery AP while TCP is still open → Failed to fetch
+    const m=String(e&&e.message||e);
+    if(/failed to fetch|networkerror|load failed/i.test(m)){
+      setMsg(t('wifiWait'),'info',true);
+      await waitConnectResult(want, 120000);
+    }else setMsg(m,'err');
+  }
+  btnConnect.disabled=false;
+};
+
+stat();
+setInterval(stat,8000);
+</script>
+</body>
+</html>

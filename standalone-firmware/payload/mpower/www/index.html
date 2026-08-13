@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="tr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NetRelayMP</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="favicon.png">
+<link rel="stylesheet" href="style.css">
+<script src="i18n.js"></script>
+<body>
+<div id="loginBox" class="login-wrap" style="display:none">
+  <form class="card login-card" onsubmit="doLogin(event)">
+    <div class="brand" style="padding:0 0 12px">
+      <div class="brand-badge">NR</div>
+      <div><h1 id="lt">Giriş</h1><p id="ls">NetRelayMP</p></div>
+    </div>
+    <label id="lu">Kullanıcı</label><input id="user" value="admin" autocomplete="username">
+    <label id="lp">Parola</label><input id="pass" type="password" autocomplete="current-password">
+    <div class="toolbar" style="align-items:center">
+      <button id="lb">Giriş yap</button>
+      <label class="tog lang-tog" title="TR / EN">
+        <span class="tog-text lang-tr">TR</span>
+        <input type="checkbox" id="loginLang" aria-label="Language">
+        <span class="tog-track"></span>
+        <span class="tog-text lang-en">EN</span>
+      </label>
+    </div>
+    <p id="lerr" class="note"></p>
+  </form>
+</div>
+
+<div id="appShell" class="app" style="display:none">
+    <main class="main">
+      <div class="topbar">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+          <div>
+            <h2 id="tTitle">Panel</h2>
+            <div class="sub" id="tSub">Enerji ve röle yönetimi</div>
+          </div>
+        </div>
+        <div class="toolbar" style="align-items:center">
+          <div class="clock-box" data-i18n-title="deviceClock" title="Cihaz saati">
+            <div class="clock-date" id="clockDate">—</div>
+            <div class="clock-time" id="clockTime">--:--:--</div>
+          </div>
+          <label class="tog lang-tog" title="TR / EN">
+            <span class="tog-text lang-tr">TR</span>
+            <input type="checkbox" id="bLang" aria-label="Language">
+            <span class="tog-track"></span>
+            <span class="tog-text lang-en">EN</span>
+          </label>
+          <button class="quiet" onclick="doLogout()" id="bOut">Çıkış</button>
+        </div>
+      </div>
+
+      <div class="stat-row" id="stats"></div>
+      <div id="tokwarn" class="warn"></div>
+      <div class="toolbar">
+        <button type="button" onclick="setAllRelays('on')" id="bAllOn">Tümünü aç</button>
+        <button type="button" class="off" onclick="setAllRelays('off')" id="bAllOff">Tümünü kapat</button>
+        <button type="button" class="cycle" onclick="setAllRelays('cycle')" id="bAllCy">Yeniden başlat</button>
+        <button class="quiet" onclick="MPApi.setToken()" id="bKey">API anahtarı</button>
+        <button class="quiet" onclick="downloadCsv()" id="bCsv">CSV</button>
+        <button class="cycle" id="bFixTime" style="display:none" onclick="fixDeviceTime()" data-i18n="fixTime">Cihaz saatini düzelt</button>
+      </div>
+      <div id="cards" class="cards"></div>
+      <p class="note" id="meta" style="margin-top:14px"></p>
+    </main>
+</div>
+
+<script>
+const app=document.getElementById('appShell');
+const names=JSON.parse(localStorage.getItem('mpower-names')||'{}');
+const n=x=>Number.isFinite(+x)?(+x).toFixed(+x<10?2:1):'—';
+const fmtUptime=s=>{
+  s=Math.max(0,Math.floor(+s||0));
+  const d=Math.floor(s/86400), h=Math.floor((s%86400)/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  if(d>0) return `${d}${t('upD')} ${h}${t('upH')} ${m}${t('upM')}`;
+  if(h>0) return `${h}${t('upH')} ${m}${t('upM')} ${sec}${t('upS')}`;
+  if(m>0) return `${m}${t('upM')} ${sec}${t('upS')}`;
+  return `${sec}${t('upS')}`;
+};
+let last,authed=false,baseUptime=0,baseAt=0,uptimeTimer=0;
+function syncWarn(){const el=tokwarn;el.style.display=(MPApi.token()||authed)?'none':'block';el.textContent=t('needKey')}
+function bindLangTog(el){
+  if(!el||el._langBound) return;
+  el._langBound=1;
+  el.checked=lang()==='en';
+  el.onchange=()=>setLang(el.checked?'en':'tr');
+}
+function uiText(){
+  tTitle.textContent=t('dash'); tSub.textContent=t('sub');
+  bAllOn.textContent=t('allOn'); bAllOff.textContent=t('allOff'); bAllCy.textContent=t('allCycle');
+  bKey.textContent=t('apiKey'); bCsv.textContent=t('csv'); bOut.textContent=t('logout');
+  bindLangTog(document.getElementById('bLang'));
+  bindLangTog(document.getElementById('loginLang'));
+  if(bFixTime) bFixTime.textContent=t('fixTime');
+  lt.textContent=t('login'); ls.textContent=t('sub'); lu.textContent=t('user'); lp.textContent=t('pass'); lb.textContent=t('loginBtn');
+}
+function paintUptime(){
+  const el=document.getElementById('statUptime');
+  if(!el||!baseAt) return;
+  const s=baseUptime+Math.floor((Date.now()-baseAt)/1000);
+  el.textContent=fmtUptime(s);
+  el.title=s+' sn';
+}
+async function gate(){
+  uiText();
+  const s=await fetch('/cgi-bin/login.sh?action=status',{credentials:'same-origin'}).then(r=>r.json()).catch(()=>({authenticated:0,setup_required:1}));
+  authed=!!s.authenticated;
+  // Önce giriş; kurulum yalnızca oturum açıldıktan sonra
+  if(!authed){loginBox.style.display='grid';app.style.display='none';return}
+  if(s.setup_required&&!localStorage.getItem('mpower-skip-setup')){location.href='setup.html';return}
+  loginBox.style.display='none';app.style.display='flex';
+  MPNav.mount('dash'); syncWarn(); load(); startClock();
+}
+async function doLogin(e){
+  e.preventDefault();
+  const p=new URLSearchParams({action:'login',user:user.value,pass:pass.value});
+  const r=await fetch('/cgi-bin/login.sh?'+p,{method:'POST',credentials:'same-origin'});
+  const x=await r.json().catch(()=>({}));
+  if(!x.ok){lerr.textContent=x.error||'fail';return}
+  // Giriş sonrası kurulum gerekliyse setup'a git
+  const s=await fetch('/cgi-bin/login.sh?action=status',{credentials:'same-origin'}).then(r=>r.json()).catch(()=>({}));
+  if(s.setup_required&&!localStorage.getItem('mpower-skip-setup')){location.href='setup.html';return}
+  gate();
+}
+async function doLogout(){await fetch('/cgi-bin/login.sh?action=logout',{method:'POST',credentials:'same-origin'});location.reload()}
+function label(p){return names[p]||(t('outlet')+' '+p)}
+function rename(p){const x=prompt(t('outlet'),label(p));if(x){names[p]=x.slice(0,32);localStorage.setItem('mpower-names',JSON.stringify(names));load()}}
+let deviceSynced=0, clockTimer=0;
+function paintClock(){
+  const elD=document.getElementById('clockDate'), elT=document.getElementById('clockTime');
+  if(!elD||!elT) return;
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const lang=localStorage.getItem('mpower-lang')||'tr';
+  const daysTr=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  const daysEn=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const day=(lang==='en'?daysEn:daysTr)[d.getDay()];
+  elD.textContent=`${day}, ${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`;
+  elT.textContent=`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function startClock(){
+  if(clockTimer) clearInterval(clockTimer);
+  paintClock();
+  clockTimer=setInterval(paintClock,1000);
+  if(uptimeTimer) clearInterval(uptimeTimer);
+  uptimeTimer=setInterval(paintUptime,1000);
+}
+function render(x){
+  last=x;
+  deviceSynced=x.synced?1:0;
+  baseUptime=+x.uptime||0;
+  baseAt=Date.now();
+  const ft=document.getElementById('bFixTime');
+  if(ft) ft.style.display=x.synced?'none':'inline-block';
+  stats.innerHTML=`
+    <div class="stat"><div class="k">${t('uptime')}</div><div class="v" id="statUptime">${fmtUptime(x.uptime)}</div></div>
+    <div class="stat"><div class="k">${t('deviceClock')}</div><div class="v">${x.now||'—'}${x.synced?'':' ⚠ NTP'}</div></div>
+    <div class="stat"><div class="k">${t('firmware')}</div><div class="v">${x.version||'—'}</div></div>
+    <div class="stat"><div class="k">${t('overlay')}</div><div class="v">${x.overlay||'—'}</div></div>
+    <div class="stat"><div class="k">${t('macLabel')}</div><div class="v">${((String(x.mac||'').match(/../g)||[]).join(':').toUpperCase())||'—'}</div></div>
+    <div class="stat"><div class="k">${t('wifiIp')}</div><div class="v">${x.ssid||'AP'} · ${x.ip||'—'}</div></div>`;
+  meta.textContent=`MAC ${x.mac||'—'} · ${x.name||x.hostname||''}`+(x.synced?'':' · '+t('clockFix'));
+  paintUptime();
+  if(document.querySelector('.relay-row .tog.busy')) return;
+  cards.innerHTML=x.outlets.map(o=>`<section class="card" data-port="${o.port}">
+    <div class="head"><strong onclick="rename(${o.port})" style="cursor:pointer">${label(o.port)} ✎</strong>
+      <span class="tag ${o.relay==1?'on':'off'}">${o.relay==1?t('open'):t('closed')}</span></div>
+    <div class="measure">
+      <span><b>${n(o.watt)} W</b>${t('watt')}</span>
+      <span><b>${n(o.wh)} Wh</b>${t('energy')}</span>
+      <span><b>${n(o.volt)} V</b>${n(o.amp)} A · PF ${n(o.pf)}</span>
+    </div>
+    <div class="relay-row">
+      <label class="tog" id="relayTogWrap${o.port}">
+        <input type="checkbox" id="relayTog${o.port}" ${o.relay==1?'checked':''}
+          onchange="toggleRelay(${o.port},this)">
+        <span class="tog-track"></span>
+        <span class="tog-text" id="relayLab${o.port}">${o.relay==1?t('open'):t('closed')}</span>
+      </label>
+    </div>
+    <div class="controls relay-actions">
+      <button class="cycle" onclick="set(${o.port},'cycle')">${t('cycle')}</button>
+      <button class="quiet" onclick="pulse(${o.port})">${t('pulse')}</button>
+    </div>
+  </section>`).join('');
+}
+async function toggleRelay(port,el){
+  const on=!!el.checked;
+  const wrap=document.getElementById('relayTogWrap'+port);
+  const lab=document.getElementById('relayLab'+port);
+  if(lab) lab.textContent=on?t('open'):t('closed');
+  if(wrap) wrap.classList.add('busy');
+  el.disabled=true;
+  try{
+    await MPApi.req(`/cgi-bin/action.sh?port=${port}&state=${on?'on':'off'}`,true);
+    setTimeout(load,400);
+  }catch(e){
+    el.checked=!on;
+    if(lab) lab.textContent=el.checked?t('open'):t('closed');
+    alert(e.message||e);
+  }finally{
+    el.disabled=false;
+    if(wrap) wrap.classList.remove('busy');
+  }
+}
+async function fixDeviceTime(){
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const stamp=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  const p=new URLSearchParams({action:'set_browser',stamp:stamp,epoch:Math.floor(d.getTime()/1000)});
+  try{
+    await MPApi.req('/cgi-bin/location.sh?'+p,true);
+    load();
+  }catch(e){alert(e.message)}
+}
+async function load(){try{render(await MPApi.req('/cgi-bin/status.sh'))}catch(e){meta.textContent=e.message}}
+async function set(p,s){if(s==='cycle'&&!confirm(label(p)+' ?'))return;await MPApi.req(`/cgi-bin/action.sh?port=${p}&state=${s}&delay=10`,true);setTimeout(load,s==='cycle'?11000:400)}
+async function pulse(p){let d=prompt(t('seconds'),'10');if(d===null)return;d=+d||10;let to=prompt(t('pulseTarget'),'');let q=`/cgi-bin/action.sh?port=${p}&state=pulse&delay=${d}`;if(to==='0'||to==='1')q+=`&to=${to}`;await MPApi.req(q,true);setTimeout(load,(d+1)*1000)}
+async function setAllRelays(s){
+  const key=s==='on'?'confirmAllOn':s==='off'?'confirmAllOff':'confirmAllCycle';
+  if(!confirm(t(key)))return;
+  await MPApi.req(`/cgi-bin/action.sh?port=all&state=${s}&delay=10`,true);
+  setTimeout(load,s==='cycle'?11000:400);
+}
+function downloadCsv(){if(!last)return;let r=['port,name,relay,watt,wh,volt,amp,pf'];last.outlets.forEach(o=>r.push([o.port,'"'+label(o.port).replaceAll('"','""')+'"',o.relay,o.watt,o.wh,o.volt,o.amp,o.pf].join(',')));let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r.join('\n')],{type:'text/csv'}));a.download='mpower.csv';a.click()}
+gate(); setInterval(()=>{if(app.style.display!=='none')load()},4000);
+</script>
+</body>
+</html>
