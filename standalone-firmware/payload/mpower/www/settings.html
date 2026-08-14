@@ -66,7 +66,9 @@
  <h3 data-i18n="fwUpdate">Firmware güncelle (overlay tar)</h3>
  <input type=file id=fw accept=.tar>
  <button onclick="upd()" data-i18n="uploadInstall">Yükle & kur</button>
- <label data-i18n="orUrl">veya URL</label><input id=url placeholder="http://pc/mpower-pkg.tar">
+ <label data-i18n="orUrl">veya URL</label>
+ <input id=url data-i18n-placeholder="fwUrlPh" placeholder="https://github.com/mlteknoloji/ubnt_mPOWER/blob/main/standalone-firmware/dist/mpower-overlay-latest.tar" autocomplete="off" spellcheck="false">
+ <p class="note" data-i18n="fwUrlHint">Boş bırakınca GitHub latest tar kullanılır. /blob/ sayfası tar değildir; tarayıcı raw dosyayı indirir.</p>
  <button class=quiet onclick="updUrl()" data-i18n="installUrl">URL ile kur</button>
  <div id=fnote class="fw-result" role=status aria-live=polite></div>
 </section>
@@ -257,15 +259,40 @@ async function upd(){
     fwMessage(t('fwInstalling'),null,true);waitFwResult();
   }catch(e){fwMessage(t('fwFailed')+': '+(e.message||e),false)}
 }
+const FW_DEFAULT_URL='https://github.com/mlteknoloji/ubnt_mPOWER/blob/main/standalone-firmware/dist/mpower-overlay-latest.tar';
+function fwRawUrl(u){
+  u=(u||'').trim()||FW_DEFAULT_URL;
+  u=u.replace(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\/([^/]+)\/(.+)$/i,'https://raw.githubusercontent.com/$1/$2/$3');
+  u=u.replace(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/raw\/([^/]+)\/(.+)$/i,'https://raw.githubusercontent.com/$1/$2/$3');
+  return u;
+}
+function looksLikeHtml(buf){
+  const head=new TextDecoder('utf-8',{fatal:false}).decode(buf.slice(0,64)).replace(/^\uFEFF/,'').trimStart().toLowerCase();
+  return head.startsWith('<!doctype')||head.startsWith('<html')||head.startsWith('<head');
+}
 async function updUrl(){
   if(!ensure())return;
+  const src=fwRawUrl(url.value);
   fwMessage(t('uploading'),null,true);
   try{
-    const p=new URLSearchParams({action:'url',url:url.value});
-    const x=await post('/cgi-bin/update.sh?'+p);
+    const res=await fetch(src,{cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const buf=await res.arrayBuffer();
+    if(!buf.byteLength) throw new Error('empty');
+    if(buf.byteLength>800000) throw new Error('too large');
+    if(looksLikeHtml(buf)) throw new Error('not a tar (GitHub HTML page)');
+    const r=await fetch('/cgi-bin/update.sh?action=upload&token='+encodeURIComponent(MPApi.token()),{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/octet-stream'},body:buf});
+    const x=await r.json();
     if(!x.ok){fwMessage(t('fwFailed')+': '+(x.error||t('error')),false);return}
     fwMessage(t('fwInstalling'),null,true);waitFwResult();
-  }catch(e){fwMessage(t('fwFailed')+': '+(e.message||e),false)}
+  }catch(e){
+    try{
+      const p=new URLSearchParams({action:'url',url:src});
+      const x=await post('/cgi-bin/update.sh?'+p);
+      if(!x.ok){fwMessage(t('fwFailed')+': '+(x.error||t('error')),false);return}
+      fwMessage(t('fwInstalling'),null,true);waitFwResult();
+    }catch(e2){fwMessage(t('fwFailed')+': '+(e.message||e),false)}
+  }
 }
 loadDev();loadLoc();loadMqtt();
 </script></body></html>

@@ -55,13 +55,31 @@ case "$action" in
     ;;
   url)
     url=$(url_decode "$(query_get url)")
+    # github.com/.../blob|raw/... → raw.githubusercontent.com (blob is an HTML page)
+    url=$(printf '%s' "$url" | sed \
+      -e 's|^https://github.com/\([^/]*\)/\([^/]*\)/blob/|https://raw.githubusercontent.com/\1/\2/|' \
+      -e 's|^https://github.com/\([^/]*\)/\([^/]*\)/raw/|https://raw.githubusercontent.com/\1/\2/|')
     case "$url" in http://*|https://*) ;; *) json_header; printf '{"ok":false,"error":"url"}'; exit 0;; esac
     mkdir "$LOCK" 2>/dev/null || { json_header; printf '{"ok":false,"error":"update already running"}'; exit 0; }
     rm -rf /tmp/mpower-fwnew; mkdir -p /tmp/mpower-fwnew
-    wget -O /tmp/mpower-fwnew/pkg.tar "$url" 2>/tmp/mpower-fw.err || {
+    wget -O /tmp/mpower-fwnew/pkg.tar "$url" >/tmp/mpower-fw.err 2>&1 || \
+      curl -L -o /tmp/mpower-fwnew/pkg.tar "$url" >/tmp/mpower-fw.err 2>&1 || {
       rmdir "$LOCK" 2>/dev/null
       json_header; printf '{"ok":false,"error":"download failed"}'; exit 0
     }
+    head=$(dd if=/tmp/mpower-fwnew/pkg.tar bs=1 count=16 2>/dev/null)
+    case "$head" in
+      '<'*|*'html'*|*'HTML'*)
+        rmdir "$LOCK" 2>/dev/null
+        json_header; printf '{"ok":false,"error":"not a tar (HTML page)"}'; exit 0
+        ;;
+    esac
+    sz=$(wc -c < /tmp/mpower-fwnew/pkg.tar 2>/dev/null)
+    case "$sz" in ''|0|*[!0-9]*) sz=0 ;; esac
+    if [ "$sz" -lt 200 ]; then
+      rmdir "$LOCK" 2>/dev/null
+      json_header; printf '{"ok":false,"error":"download failed"}'; exit 0
+    fi
     cd /tmp/mpower-fwnew && tar xf pkg.tar 2>/tmp/mpower-fw.err || {
       rmdir "$LOCK" 2>/dev/null
       json_header; printf '{"ok":false,"error":"bad tar"}'; exit 0
