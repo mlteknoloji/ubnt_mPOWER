@@ -4,6 +4,7 @@ ROOT=/etc/persistent/mpower
 LOG=/tmp/mpower-watchdog.log
 interval=30
 MQTT_RETRY_SECONDS=30
+WIFI_RETRY_SECONDS=60
 wifi_fail=0
 last_mqtt_attempt=0
 
@@ -34,14 +35,17 @@ ensure_wifi() {
     /bin/sh "$ROOT/bin/ap-control.sh" sync >/dev/null 2>&1 || true
     return 0
   }
-  # User/setup already gave up (2 attempts). Keep recovery AP until they retry.
-  if [ -f /tmp/mpower-wifi.hold ]; then
-    wifi_fail=0
-    /bin/sh "$ROOT/bin/ap-control.sh" sync >/dev/null 2>&1 || true
-    return 0
-  fi
   # Do not launch a second association/DHCP cycle while one is active.
   [ -d /tmp/mpower-wifi.lock ] && return 0
+  # Invalid saved PSK length cannot succeed — keep AP, do not retry.
+  if [ -f /tmp/mpower-wifi.hold ]; then
+    hold_reason=$(cat /tmp/mpower-wifi.hold 2>/dev/null)
+    if [ "$hold_reason" = bad_password ]; then
+      wifi_fail=0
+      /bin/sh "$ROOT/bin/ap-control.sh" sync >/dev/null 2>&1 || true
+      return 0
+    fi
+  fi
   ip=$(ifconfig ath0 2>/dev/null | sed -n 's/.*inet addr:\([0-9.]*\).*/\1/p')
   ap=$(iwconfig ath0 2>/dev/null | sed -n 's/.*Access Point: \([^ ]*\).*/\1/p')
   associated=0
@@ -58,12 +62,21 @@ ensure_wifi() {
     /bin/sh "$ROOT/bin/network-apply.sh" >> /tmp/mpower-net.log 2>&1 || true
   else
     wifi_fail=$((wifi_fail + 1))
-    log "wifi not associated (fail=$wifi_fail)"
-    # One automatic reconnect after ~60s (wifi-client itself tries twice), then hold.
-    if [ "$wifi_fail" -ge 2 ]; then
-      /bin/sh "$ROOT/bin/wifi-client.sh" >> /tmp/mpower-wifi.log 2>&1 || true
-      wifi_fail=0
+    # Recovery AP must stay up while STA is down. Retry in background so this
+    # loop (httpd/MQTT) is not blocked for the association wait.
+    /bin/sh "$ROOT/bin/ap-control.sh" sync >/dev/null 2>&1 || true
+    now=$(date +%s 2>/dev/null || echo 0)
+    last=0
+    [ -f /tmp/mpower-wifi-result ] && last=$(sed -n 's/^ts=//p' /tmp/mpower-wifi-result | head -1)
+    case "$now" in ''|*[!0-9]*) now=0 ;; esac
+    case "$last" in ''|*[!0-9]*) last=0 ;; esac
+    if [ "$last" -gt 0 ] && [ $((now - last)) -lt "$WIFI_RETRY_SECONDS" ]; then
+      return 0
     fi
+    log "wifi not associated (fail=$wifi_fail) — keep-ap retry"
+    /bin/sh "$ROOT/bin/wifi-client.sh" keep-ap >> /tmp/mpower-wifi.log 2>&1 &
+    wifi_fail=0
+    return 0
   fi
   /bin/sh "$ROOT/bin/ap-control.sh" sync >/dev/null 2>&1 || true
 }

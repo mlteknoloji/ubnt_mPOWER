@@ -1,12 +1,19 @@
 #!/bin/sh
-# Connect ath0 as station (max 2 association attempts). Hide recovery AP
-# only after a real LAN IP. Any failure sets /tmp/mpower-wifi.hold so
-# watchdog will not keep tearing the AP down. Retry from Setup / Wi‑Fi.
+# Connect ath0 as station. Hide recovery AP only after a real LAN IP.
+# Stock :8080 (mFi) keeps ath1 AP up while ath0 STA associates; the radio may
+# glitch briefly, then phones rejoin mFi… — same model here. Never ifconfig
+# ath1 down during associate.
+#   (no args)  — setup/boot: 2 association attempts, AP stays up
+#   keep-ap    — watchdog retry: 1 short attempt, AP stays up
+# Failure sets /tmp/mpower-wifi.hold (last result). Watchdog retries keep-ap
+# every 60s unless the reason is bad_password.
 # Writes /tmp/mpower-wifi-result for UI error reporting.
 # mode=station (default) | wds  → Station / Station WDS
 cfg=/etc/persistent/mpower/wifi.conf
 RESULT=/tmp/mpower-wifi-result
 HOLD=/tmp/mpower-wifi.hold
+KEEP_AP=0
+case "$1" in keep-ap) KEEP_AP=1 ;; esac
 [ -f "$cfg" ] || exit 0
 LOCK=/tmp/mpower-wifi.lock
 if ! mkdir "$LOCK" 2>/dev/null; then
@@ -89,9 +96,10 @@ set_sta_wds() {
   fi
 }
 
-# ath0/ath1 share one radio. Drop recovery AP only for the 2 association
-# attempts; failure restores it and sets a hold so watchdog will not retry.
-/etc/persistent/mpower/bin/ap-control.sh down >/tmp/mpower-ap.log 2>&1 || true
+# Same radio as stock :8080: leave recovery AP up while STA associates.
+# Beacon may hitch; clients reconnect when ath1 is back. Hide AP only in
+# cleanup → ap-control sync after a real LAN IP (sta_ok).
+/etc/persistent/mpower/bin/ap-control.sh sync >/tmp/mpower-ap.log 2>&1 || true
 
 if [ "$security" = wpa ]; then
   if [ ${#psk} -lt 8 ] || [ ${#psk} -gt 63 ]; then
@@ -124,7 +132,8 @@ start_sta() {
 wait_assoc() {
   assoc=
   i=0
-  while [ "$i" -lt 25 ]; do
+  limit=${1:-25}
+  while [ "$i" -lt "$limit" ]; do
     ap=$(iwconfig ath0 2>/dev/null | sed -n 's/.*Access Point: \([^ ]*\).*/\1/p')
     case "$ap" in
       ''|Not-Associated|00:00:00:00:00:00) ;;
@@ -136,21 +145,28 @@ wait_assoc() {
   return 1
 }
 
-# Two radio attempts, then give up and stay in recovery AP.
+# keep-ap: one short try so recovery AP is not down for ~50s every minute.
+max_try=2
+assoc_wait=25
+if [ "$KEEP_AP" = 1 ]; then
+  max_try=1
+  assoc_wait=10
+fi
+
 assoc=
 try=0
-while [ "$try" -lt 2 ]; do
+while [ "$try" -lt "$max_try" ]; do
   try=$((try + 1))
-  write_result running associating "attempt $try/2"
+  write_result running associating "attempt $try/$max_try"
   if ! start_sta; then
-    [ "$try" -lt 2 ] && sleep 2 && continue
+    [ "$try" -lt "$max_try" ] && sleep 2 && continue
     [ -x /etc/persistent/mpower/bin/boot-mark.sh ] && \
       /etc/persistent/mpower/bin/boot-mark.sh wifi.wpa_start.failed
     mark_hold wpa_start
     write_result fail wpa_start "wpa_supplicant failed after $try attempts"
     exit 3
   fi
-  if wait_assoc; then
+  if wait_assoc "$assoc_wait"; then
     break
   fi
 done
@@ -159,7 +175,7 @@ if [ -z "$assoc" ]; then
   [ -x /etc/persistent/mpower/bin/boot-mark.sh ] && \
     /etc/persistent/mpower/bin/boot-mark.sh wifi.associate.failed
   mark_hold associate
-  write_result fail associate "SSID not found or wrong password (2 attempts)"
+  write_result fail associate "SSID not found or wrong password ($try attempts)"
   exit 4
 fi
 
