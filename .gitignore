@@ -14,7 +14,7 @@ Thumbs.db
 *.pem
 standalone-firmware/firmware/*.bin
 !standalone-firmware/firmware/MF.v2.1.11.bin
-standalone-firmware/dist/*.tar
+# Overlay packages in standalone-firmware/dist/ are published (github-gonder.bat)
 
 # Local-only GitHub helper (not published)
 scripts/github-gonder.bat
