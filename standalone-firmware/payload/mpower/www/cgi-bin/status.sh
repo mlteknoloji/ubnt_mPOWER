@@ -38,8 +38,15 @@ ssid=$(iwconfig ath0 2>/dev/null | sed -n 's/.*ESSID:"\([^"]*\)".*/\1/p' | tr -c
 now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
 synced=0; [ "${now%%-*}" -ge 2020 ] 2>/dev/null && synced=1
 ip=$(ifconfig ath0 2>/dev/null | sed -n 's/.*inet addr:\([0-9.]*\).*/\1/p')
-printf '{"version":"%s","overlay":"%s","uptime":%s,"ssid":"%s","ip":"%s","mac":"%s","hostname":"%s","name":"%s","now":"%s","synced":%s,"outlets":[' \
-  "$version" "$overlay" "${uptime:-0}" "$ssid" "$ip" "$mac" "$hostname" "$name" "$now" "$synced"
+# "now" is the UTC device clock (kept for API users); "tz" is the configured
+# whole-hour offset, so local time = now + tz hours.
+tz=3; [ -r "$MP_ROOT/location.conf" ] && while IFS= read line; do
+  case "$line" in tz=*) tz=${line#tz=} ;; esac
+done < "$MP_ROOT/location.conf"
+case "$tz" in ''|*[!0-9+-]*) tz=3 ;; esac
+tz=${tz#+}
+printf '{"version":"%s","overlay":"%s","uptime":%s,"ssid":"%s","ip":"%s","mac":"%s","hostname":"%s","name":"%s","now":"%s","tz":%s,"synced":%s,"outlets":[' \
+  "$version" "$overlay" "${uptime:-0}" "$ssid" "$ip" "$mac" "$hostname" "$name" "$now" "$tz" "$synced"
 
 # read builtin instead of cat: 18 fewer processes per request.
 pv() { v=; [ -r "$1" ] && read v < "$1"; [ -n "$v" ] || v=null; }

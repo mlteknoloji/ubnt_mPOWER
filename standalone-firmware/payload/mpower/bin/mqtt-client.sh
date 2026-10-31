@@ -9,7 +9,14 @@ LOG=/tmp/mpower-mqtt.log
 # traffic is logged too (normally only connection events are).
 LIVE=/tmp/mpower-mqtt.live
 NCPID=/tmp/mpower-mqtt.ncpid
-mlog() { echo "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null) $*" >> "$LOG"; }
+# Local time for log stamps: the clock and crond run in UTC; location.conf
+# tz is the whole-hour offset. POSIX TZ signs are reversed (GMT-3 = UTC+3).
+ltz=3; [ -r "$MP_ROOT/location.conf" ] && while IFS= read l; do
+  case "$l" in tz=*) ltz=${l#tz=} ;; esac
+done < "$MP_ROOT/location.conf"
+case "$ltz" in ''|*[!0-9+-]*) ltz=3 ;; esac
+case "$ltz" in -*) LTZ="GMT+${ltz#-}" ;; *) LTZ="GMT-${ltz#+}" ;; esac
+mlog() { echo "$(TZ=$LTZ date '+%Y-%m-%d %H:%M:%S' 2>/dev/null) $*" >> "$LOG"; }
 # Keep the RAM log small: past 32 KB keep the last 200 lines (same inode,
 # so nc's stderr redirect keeps writing into it).
 trim_log() {

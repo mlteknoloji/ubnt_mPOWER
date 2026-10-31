@@ -159,7 +159,7 @@ function render(x){
   if(ft) ft.style.display=x.synced?'none':'inline-block';
   stats.innerHTML=`
     <div class="stat"><div class="k">${t('uptime')}</div><div class="v" id="statUptime">${fmtUptime(x.uptime)}</div></div>
-    <div class="stat"><div class="k">${t('deviceClock')}</div><div class="v">${x.now||'—'}${x.synced?'':' ⚠ NTP'}</div></div>
+    <div class="stat"><div class="k">${t('deviceClock')}</div><div class="v">${devLocal(x.now,x.tz)}${x.synced?'':' ⚠ NTP'}</div></div>
     <div class="stat"><div class="k">${t('firmware')}</div><div class="v">${x.version||'—'}</div></div>
     <div class="stat"><div class="k">${t('overlay')}</div><div class="v">${x.overlay||'—'}</div></div>
     <div class="stat"><div class="k">${t('macLabel')}</div><div class="v">${((String(x.mac||'').match(/../g)||[]).join(':').toUpperCase())||'—'}</div></div>
@@ -210,9 +210,7 @@ async function toggleRelay(port,el){
 }
 async function fixDeviceTime(){
   const d=new Date();
-  const pad=n=>String(n).padStart(2,'0');
-  const stamp=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  const p=new URLSearchParams({action:'set_browser',stamp:stamp,epoch:Math.floor(d.getTime()/1000)});
+  const p=new URLSearchParams({action:'set_browser',stamp:utcStamp(d),epoch:Math.floor(d.getTime()/1000)});
   try{
     await MPApi.req('/cgi-bin/location.sh?'+p,true);
     load();

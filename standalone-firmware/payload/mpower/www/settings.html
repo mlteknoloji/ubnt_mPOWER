@@ -115,7 +115,7 @@ async function saveLed(){const p=new URLSearchParams({action:'led',enabled:ledEn
 async function loadLoc(){
   const x=await fetch('/cgi-bin/location.sh?action=get').then(r=>r.json());
   lat.value=x.lat;lon.value=x.lon;tz.value=x.tz;ntp.value=x.ntp;
-  lnote.textContent=t('deviceNow')+`${x.now}`+(x.synced?'':' ⚠');
+  lnote.textContent=t('deviceNow')+devLocal(x.now,x.tz)+(x.synced?'':' ⚠');
   let hint='';
   if(!x.synced){
     if(x.reason==='no_internet') hint=t('ntpNoNet');
@@ -181,10 +181,8 @@ async function loc(){
 async function sync(){lnote.textContent=t('tryingNtp');lnote.textContent=JSON.stringify(await post('/cgi-bin/location.sh?action=sync'));loadLoc()}
 async function setBrowserTime(){
   const d=new Date();
-  const pad=n=>String(n).padStart(2,'0');
-  const stamp=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  const p=new URLSearchParams({action:'set_browser',stamp:stamp,epoch:Math.floor(d.getTime()/1000)});
-  lnote.textContent=JSON.stringify(await post('/cgi-bin/location.sh?'+p));
+  const p=new URLSearchParams({action:'set_browser',stamp:utcStamp(d),epoch:Math.floor(d.getTime()/1000)});
+  try{await post('/cgi-bin/location.sh?'+p)}catch(e){lnote.textContent='\u2715 '+(e.message||e);return}
   loadLoc();
 }
 function fwMessage(text,ok,busy=false){

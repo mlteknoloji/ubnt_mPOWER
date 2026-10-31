@@ -182,12 +182,13 @@ case "$action" in
       case "$epoch" in *[!0-9]*|'') json_header; printf '{"ok":false,"error":"bad epoch"}'; exit 0;; esac
       # busybox date -s @epoch may not exist; convert via awk if needed
       if date -s "@$epoch" >/tmp/mpower-ntp.log 2>&1; then
-        :
+        stamp=
       else
         # fallback: expect stamp
         [ -n "$stamp" ] || { json_header; printf '{"ok":false,"error":"date -s @epoch unsupported; send stamp"}'; exit 0; }
       fi
     fi
+    # The stamp is UTC (the device clock and crond run in UTC).
     if [ -n "$stamp" ]; then
       # Try ISO then BusyBox MMDDhhmmYYYY.ss
       if ! date -s "$stamp" >/tmp/mpower-ntp.log 2>&1; then

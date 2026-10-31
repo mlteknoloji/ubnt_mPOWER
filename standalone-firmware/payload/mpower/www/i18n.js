@@ -333,6 +333,17 @@ window.applyI18n=(root)=>{
   const html=document.documentElement;
   if(html) html.lang=lang();
 };
+// Device clock is UTC; show it in the configured offset, e.g.
+// devLocal("2026-10-31 17:23:57", 3) -> "2026-10-31 20:23:57 (UTC+3)".
+window.devLocal=(now,tz)=>{
+  const m=/^(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)$/.exec(now||'');
+  if(!m) return now||'—';
+  const z=+tz||0, d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5],+m[6])+z*3600e3);
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())} (UTC${z>=0?'+':''}${z})`;
+};
+// Browser time as a UTC stamp for set_browser.
+window.utcStamp=(d)=>d.toISOString().slice(0,19).replace('T',' ');
 window.MPNav={
   items:[
     {href:'/', key:'dash', match:['/', '/index.html']},

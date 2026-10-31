@@ -7,7 +7,14 @@ PIDFILE=/tmp/mpower-mqtt.pid
 STATUS=/tmp/mpower-mqtt-status.json
 LOG=/tmp/mpower-mqtt.log
 action=$(query_get action)
-mlog() { echo "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null) $*" >> "$LOG"; }
+# Local time for log stamps: the clock and crond run in UTC; location.conf
+# tz is the whole-hour offset. POSIX TZ signs are reversed (GMT-3 = UTC+3).
+ltz=3; [ -r "$MP_ROOT/location.conf" ] && while IFS= read l; do
+  case "$l" in tz=*) ltz=${l#tz=} ;; esac
+done < "$MP_ROOT/location.conf"
+case "$ltz" in ''|*[!0-9+-]*) ltz=3 ;; esac
+case "$ltz" in -*) LTZ="GMT+${ltz#-}" ;; *) LTZ="GMT-${ltz#+}" ;; esac
+mlog() { echo "$(TZ=$LTZ date '+%Y-%m-%d %H:%M:%S' 2>/dev/null) $*" >> "$LOG"; }
 
 json_esc() { printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g'; }
 
