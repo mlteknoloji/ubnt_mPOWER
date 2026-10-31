@@ -1,20 +1,51 @@
 #!/bin/sh
-. "$(dirname "$0")/common.sh"
-. "$(dirname "$0")/auth.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
+. "$CGI_DIR/auth.sh"
 cfg=$MP_ROOT/mqtt.conf
 PIDFILE=/tmp/mpower-mqtt.pid
 STATUS=/tmp/mpower-mqtt-status.json
+LOG=/tmp/mpower-mqtt.log
 action=$(query_get action)
+mlog() { echo "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null) $*" >> "$LOG"; }
 
 json_esc() { printf '%s' "$1" | sed 's/\\/\\\\/g;s/"/\\"/g'; }
 
 case "$action" in
   status)
     json_header
-    if [ -f "$STATUS" ]; then cat "$STATUS"
-    elif [ -f "$PIDFILE" ]; then printf '{"state":"connecting","code":0,"message":"connecting"}'
+    en=$(sed -n 's/^enabled=//p' "$cfg" 2>/dev/null | head -1)
+    pid=; [ -r "$PIDFILE" ] && read pid < "$PIDFILE"
+    alive=0
+    case "$pid" in ''|*[!0-9]*) ;; *) kill -0 "$pid" 2>/dev/null && alive=1 ;; esac
+    st=; [ -f "$STATUS" ] && st=$(cat "$STATUS")
+    if [ "$en" != 1 ]; then printf '{"state":"stopped","code":0,"message":"disabled"}'
+    elif [ -n "$st" ]; then
+      # A client killed while connected leaves "connected" behind.
+      case "$st" in
+        *'"connected"'*) [ "$alive" = 1 ] && printf '%s' "$st" || printf '{"state":"disconnected","code":0,"message":"connection_closed"}' ;;
+        *) printf '%s' "$st" ;;
+      esac
+    elif [ "$alive" = 1 ]; then printf '{"state":"connecting","code":0,"message":"connecting"}'
     else printf '{"state":"stopped","code":0,"message":"stopped"}'
     fi
+    ;;
+  log)
+    # Plain text, newest last. live=1 tells the client to log TX/RX traffic
+    # for the next 15 s (the page repeats this while live log is on).
+    require_session_json || exit 0
+    if [ "$(query_get live)" = 1 ]; then
+      up=; read up rest < /proc/uptime; echo "${up%%.*}" > /tmp/mpower-mqtt.live
+    fi
+    n=$(query_get lines); case "$n" in ''|*[!0-9]*) n=200 ;; esac
+    [ "$n" -gt 400 ] && n=400
+    printf 'Content-Type: text/plain; charset=utf-8\r\nCache-Control: no-store\r\n\r\n'
+    [ -f "$LOG" ] && tail -n "$n" "$LOG"
+    ;;
+  clearlog)
+    require_token || exit 0
+    : > "$LOG"
+    json_header; printf '{"ok":true}'
     ;;
   ''|get)
     json_header
@@ -87,8 +118,13 @@ case "$action" in
     ps w 2>/dev/null | grep 'mpower/bin/mqtt-client.sh' | grep -v grep | while read oldpid rest; do
       case "$oldpid" in ''|*[!0-9]*) ;; *) kill "$oldpid" 2>/dev/null ;; esac
     done
-    rm -f "$STATUS"
-    [ "$enabled" = 1 ] && /bin/sh /etc/persistent/mpower/bin/mqtt-client.sh >/tmp/mpower-mqtt.log 2>&1 &
+    rm -f "$STATUS" /tmp/mpower-mqtt.stopping
+    if [ "$enabled" = 1 ]; then
+      mlog "INFO settings saved, (re)starting client"
+      /bin/sh /etc/persistent/mpower/bin/mqtt-client.sh >>"$LOG" 2>&1 &
+    else
+      mlog "INFO settings saved, MQTT disabled"
+    fi
     json_header; printf '{"ok":true}'
     ;;
   *) json_header; printf '{"ok":false,"error":"unknown"}' ;;

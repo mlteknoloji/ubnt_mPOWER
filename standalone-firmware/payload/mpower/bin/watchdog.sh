@@ -8,24 +8,84 @@ WIFI_RETRY_SECONDS=60
 wifi_fail=0
 last_mqtt_attempt=0
 
+ntp_ok=0
+
 log() { echo "$(date 2>/dev/null) $*" >> "$LOG"; tail -n 80 "$LOG" > "$LOG.tmp" 2>/dev/null && mv "$LOG.tmp" "$LOG"; }
 
-ensure_httpd() {
-  n=$(ps w 2>/dev/null | grep 'httpd -p 8088' | grep -v grep | wc -l)
-  case "$n" in
-    ''|0)
-      log "httpd down — start"
-      /sbin/httpd -p 8088 -h "$ROOT/www"
-      return 0
-      ;;
-    *) return 0 ;;
-  esac
-  # Duplicates: replace the set with exactly one clean listener.
-  log "httpd duplicates=$n — cleanup"
-  ps w 2>/dev/null | grep 'httpd -p 8088' | grep -v grep | while read pid rest; do
-    case "$pid" in ''|*[!0-9]*) continue ;; esac
-    kill "$pid" 2>/dev/null
+# One `ps w` per tick (snapshot in $PS); checks below match it in the shell.
+# Before: ~8 separate `ps w | grep | grep -v grep` pipelines every 30 s.
+NL='
+'
+snap_ps() { PS=$(ps w 2>/dev/null); }
+# Lines containing "grep" are skipped, exactly like the old `| grep -v grep`:
+# a shell whose command line merely mentions a pattern (e.g. an SSH diagnostic
+# running `grep 'httpd -p 8088'`) must never count as, or be killed as, httpd.
+# count_ps PATTERN -> cnt
+count_ps() {
+  cnt=0; oldifs=$IFS; IFS=$NL; set -f
+  for l in $PS; do
+    case "$l" in *grep*) ;; *"$1"*) cnt=$((cnt + 1)) ;; esac
   done
+  set +f; IFS=$oldifs
+}
+running() { count_ps "$1"; [ "$cnt" -gt 0 ]; }
+# kill_ps PATTERN: kill every process in the snapshot whose line matches
+kill_ps() {
+  kpat=$1; oldifs=$IFS; IFS=$NL; set -f
+  for l in $PS; do
+    case "$l" in *grep*) ;; *"$kpat"*)
+      IFS=' '; set -- $l; IFS=$NL
+      case "$1" in ''|*[!0-9]*) ;; *) kill "$1" 2>/dev/null ;; esac
+      ;;
+    esac
+  done
+  set +f; IFS=$oldifs
+}
+# file_has FILE PATTERN [PATTERN2]: true if a whole line matches a shell
+# pattern (read builtin, no grep fork). `|` does not work inside a variable
+# pattern, so alternatives are passed as separate arguments.
+file_has() {
+  [ -f "$1" ] || return 1
+  while IFS= read fl; do
+    case "$fl" in $2) return 0 ;; esac
+    [ -n "$3" ] && case "$fl" in $3) return 0 ;; esac
+  done < "$1"
+  return 1
+}
+
+# httpd_listeners -> hl_pids/hl_n: only daemonized listeners (PPID 1).
+# BusyBox httpd forks one child per request with the same command line;
+# counting those as "duplicates" made the watchdog kill httpd (and the
+# request in flight) whenever a tick hit a running CGI.
+httpd_listeners() {
+  hl_pids=; hl_n=0; oldifs=$IFS; IFS=$NL; set -f
+  for l in $PS; do
+    case "$l" in *grep*) ;; *'httpd -p 8088'*)
+      IFS=' '; set -- $l
+      hp=$1; pp=
+      if [ -r "/proc/$hp/stat" ]; then
+        read hst < "/proc/$hp/stat"; set -- $hst; pp=$4
+      fi
+      IFS=$NL
+      [ "$pp" = 1 ] && { hl_pids="$hl_pids $hp"; hl_n=$((hl_n + 1)); }
+      ;;
+    esac
+  done
+  set +f; IFS=$oldifs
+}
+
+ensure_httpd() {
+  count_ps 'httpd -p 8088'; n=$cnt
+  if [ "$n" = 0 ]; then
+    log "httpd down — start"
+    /sbin/httpd -p 8088 -h "$ROOT/www"
+    return 0
+  fi
+  httpd_listeners
+  [ "$hl_n" -le 1 ] && return 0
+  # Real duplicate listeners: replace them with exactly one.
+  log "httpd listeners=$hl_n — cleanup"
+  for hp in $hl_pids; do kill "$hp" 2>/dev/null; done
   sleep 1
   /sbin/httpd -p 8088 -h "$ROOT/www"
 }
@@ -55,6 +115,8 @@ ensure_wifi() {
   esac
   if [ "$associated" = 1 ] && [ -n "$ip" ] && [ "$ip" != "192.168.1.50" ]; then
     wifi_fail=0
+    /bin/sh "$ROOT/bin/ap-control.sh" down >/dev/null 2>&1 || true
+    return 0
   elif [ "$associated" = 1 ]; then
     # Associated but no real IP: renew DHCP only — do not tear down recovery AP.
     wifi_fail=0
@@ -82,8 +144,16 @@ ensure_wifi() {
 }
 
 ensure_ntp() {
+  # Once the clock is valid it stays valid until reboot: stop checking.
+  [ "$ntp_ok" = 1 ] && return 0
   year=$(date +%Y 2>/dev/null)
-  [ "$year" -ge 2020 ] 2>/dev/null && return 0
+  if [ "$year" -ge 2020 ] 2>/dev/null; then
+    ntp_ok=1
+    # Sunrise/sunset rules are skipped while the clock is invalid; compile
+    # them now instead of waiting for the 00:05 nightly rebuild.
+    /bin/sh "$ROOT/bin/schedule-cron.sh" >> /tmp/mpower-scheduler.log 2>&1
+    return 0
+  fi
   # only try if default route exists
   route -n 2>/dev/null | grep -q '^0\.0\.0\.0' || return 0
   log "ntp attempt"
@@ -91,7 +161,7 @@ ensure_ntp() {
 }
 
 ensure_mqtt() {
-  if [ ! -f "$ROOT/mqtt.conf" ] || ! grep -q '^enabled=1' "$ROOT/mqtt.conf"; then
+  if ! file_has "$ROOT/mqtt.conf" 'enabled=1*'; then
     # MQTT is disabled: make sure no previously started client remains alive.
     if [ -f /tmp/mpower-mqtt.pid ]; then
       mqtt_pid=$(cat /tmp/mpower-mqtt.pid 2>/dev/null)
@@ -100,7 +170,7 @@ ensure_mqtt() {
     fi
     return 0
   fi
-  if ! ps w 2>/dev/null | grep 'mpower/bin/mqtt-client.sh' | grep -vq grep; then
+  if ! running 'mpower/bin/mqtt-client.sh'; then
     now=$(date +%s 2>/dev/null || echo 0)
     case "$now" in ''|*[!0-9]*) now=0;; esac
     # Retry a failed or dropped MQTT connection at most once every 30 seconds.
@@ -113,26 +183,23 @@ ensure_mqtt() {
 }
 
 ensure_schedule_cron() {
-  if ! ps w 2>/dev/null | grep '[c]rond' >/dev/null; then
+  if ! running 'crond'; then
     log "crond restart"
     /bin/crond -b -S
   fi
-  if ! grep -q '^# BEGIN NETRELAYMP SCHEDULES$' /etc/crontabs/ubnt 2>/dev/null; then
+  if ! file_has /etc/crontabs/ubnt '# BEGIN NETRELAYMP SCHEDULES'; then
     log "schedule cron rebuild"
     /bin/sh "$ROOT/bin/schedule-cron.sh" >> /tmp/mpower-scheduler.log 2>&1
   fi
 }
 
 ensure_pingwatch() {
-  if ! grep -q '^enabled[123]=1$' "$ROOT/ping.conf" 2>/dev/null &&
-     ! grep -q '^enabled=1$' "$ROOT/ping.conf" 2>/dev/null; then
+  if ! file_has "$ROOT/ping.conf" 'enabled[123]=1' 'enabled=1'; then
     # No enabled rule: keep the worker stopped to save CPU and memory.
-    ps w 2>/dev/null | grep 'mpower/bin/ping-watch.sh' | grep -v grep | while read pid rest; do
-      case "$pid" in ''|*[!0-9]*) ;; *) kill "$pid" 2>/dev/null ;; esac
-    done
+    running 'mpower/bin/ping-watch.sh' && kill_ps 'mpower/bin/ping-watch.sh'
     return 0
   fi
-  if ! ps w 2>/dev/null | grep 'mpower/bin/ping-watch.sh' | grep -vq grep; then
+  if ! running 'mpower/bin/ping-watch.sh'; then
     log "ping-watch restart"
     /bin/sh "$ROOT/bin/ping-watch.sh" >> /tmp/mpower-pingwatch.log 2>&1 &
   fi
@@ -141,14 +208,14 @@ ensure_pingwatch() {
 ensure_udp_discover() {
   # udp-beacon only lives for one send; the long-lived process is udp-discover.sh.
   # Matching udp-beacon caused a new shell every 30s until the unit OOMed.
-  if ! ps w 2>/dev/null | grep 'mpower/bin/udp-discover.sh' | grep -vq grep; then
+  if ! running 'mpower/bin/udp-discover.sh'; then
     log "udp-discover restart"
     /bin/sh "$ROOT/bin/udp-discover.sh" >> /tmp/mpower-udp-discover.log 2>&1 &
   fi
 }
 
 ensure_button() {
-  if ! ps w 2>/dev/null | grep 'mpower/bin/button-watch.sh' | grep -vq grep; then
+  if ! running 'mpower/bin/button-watch.sh'; then
     log "button-watch restart"
     /bin/sh "$ROOT/bin/button-watch.sh" >> /tmp/mpower-button.log 2>&1 &
   fi
@@ -156,6 +223,7 @@ ensure_button() {
 
 log "watchdog start"
 while true; do
+  snap_ps
   ensure_httpd
   ensure_wifi
   ensure_ntp

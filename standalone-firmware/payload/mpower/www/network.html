@@ -101,31 +101,68 @@ function setMsg(text,kind,busy){
   statusText.textContent=text;
 }
 
-function isIPv4(s){
-  if(typeof s!=='string') return false;
-  const m=s.trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if(!m) return false;
-  for(let i=1;i<=4;i++){
-    const n=+m[i];
-    if(!Number.isInteger(n)||n<0||n>255) return false;
-    // reject leading zeros (01.2.3.4) except bare 0
-    if(m[i].length>1 && m[i][0]==='0') return false;
-  }
-  return true;
+// Same rules as cgi-bin/network.sh; codes map to netErr_* in i18n.js.
+function ipParts(s){
+  const m=String(s).trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if(!m) return null;
+  const o=m.slice(1);
+  // 0-255, no leading zeros (Linux reads "010" as octal 8)
+  if(o.some(x=>+x>255||(x.length>1&&x[0]==='0'))) return null;
+  return o.map(Number);
 }
-
-function isNetmask(s){
-  if(!isIPv4(s)) return false;
-  const parts=s.trim().split('.').map(Number);
-  let bits=0;
-  for(const p of parts) bits=(bits<<8)|p;
-  // treat as unsigned 32-bit
-  bits=bits>>>0;
-  // contiguous 1s then 0s; not 0.0.0.0
-  if(bits===0) return false;
+function isIPv4(s){return !!ipParts(s)}
+function maskPrefix(s){
+  const p=ipParts(s); if(!p) return -1;
+  const bits=((p[0]<<24)|(p[1]<<16)|(p[2]<<8)|p[3])>>>0;
   const inv=(~bits)>>>0;
-  // inv+1 should be power of 2 (or inv===0 for /32)
-  return (inv & (inv+1))===0;
+  if((inv&(inv+1))!==0) return -1;
+  let n=0; for(let b=bits;b;b=(b<<1)>>>0) n++;
+  return n;
+}
+function isNetmask(s){const n=maskPrefix(s);return n>=8&&n<=30}
+function hostErr(a,m){
+  if(a[0]===0||a[0]===127||a[0]>=224) return 'reserved';
+  const host=a.map((o,i)=>o&(255-m[i]));
+  if(host.every(x=>x===0)) return 'network';
+  if(host.every((x,i)=>x===255-m[i])) return 'broadcast';
+  return '';
+}
+function dnsOk(s){const p=ipParts(s);return !!p&&p[0]!==0&&p[0]!==127&&p[0]<224}
+// Returns {el,code} for the first problem, or null.
+function staticError(){
+  const v=e=>e.value.trim();
+  if(!v(ip)) return {el:ip,code:'ip_required'};
+  const a=ipParts(v(ip)); if(!a) return {el:ip,code:'ip_invalid'};
+  if(!v(mask)) return {el:mask,code:'mask_required'};
+  if(!isNetmask(v(mask))) return {el:mask,code:'mask_invalid'};
+  const m=ipParts(v(mask));
+  let e=hostErr(a,m); if(e) return {el:ip,code:'ip_'+e};
+  if(!v(gw)) return {el:gw,code:'gw_required'};
+  const g=ipParts(v(gw)); if(!g) return {el:gw,code:'gw_invalid'};
+  e=hostErr(g,m); if(e) return {el:gw,code:'gw_'+e};
+  if(v(gw)===v(ip)) return {el:gw,code:'gw_equals_ip'};
+  if(a.some((o,i)=>(o&m[i])!==(g[i]&m[i]))) return {el:gw,code:'gw_subnet'};
+  if(v(dns)&&!dnsOk(v(dns))) return {el:dns,code:'dns_invalid'};
+  if(v(dns2)&&!dnsOk(v(dns2))) return {el:dns2,code:'dns2_invalid'};
+  return null;
+}
+function netErrText(code,el){
+  const s=t('netErr_'+code);
+  return s.startsWith('netErr_')?code:s+(el&&el.value.trim()?': '+el.value.trim():'');
+}
+// Live check: mark the offending field and show the reason under it.
+const NET_FIELDS=()=>[ip,mask,gw,dns,dns2];
+function liveCheck(){
+  NET_FIELDS().forEach(f=>{f.classList.remove('bad');const h=document.getElementById(f.id+'Err');if(h)h.textContent=''});
+  const e=staticError();
+  if(!e) return true;
+  // Only complain about fields the user already filled in.
+  if(e.el.value.trim()){
+    e.el.classList.add('bad');
+    const h=document.getElementById(e.el.id+'Err');
+    if(h) h.textContent=netErrText(e.code);
+  }
+  return false;
 }
 
 const STATIC_DEFAULTS={
@@ -152,29 +189,16 @@ function syncMode(){
 mode.onchange=syncMode;
 
 function validateStatic(){
-  const fields=[
-    {el:ip,name:'IP',fn:isIPv4,req:true},
-    {el:mask,name:'Subnet',fn:isNetmask,req:true},
-    {el:gw,name:'Gateway',fn:isIPv4,req:true},
-    {el:dns,name:'DNS 1',fn:isIPv4,req:true},
-    {el:dns2,name:'DNS 2',fn:v=>!v.trim()||isIPv4(v),req:false}
-  ];
-  for(const f of fields){
-    const v=f.el.value.trim();
-    f.el.value=v;
-    if(f.req && !v){setMsg(f.name+' '+t('required'),'err');f.el.focus();return false}
-    if(v && !f.fn(v)){setMsg(f.name+' '+t('invalid')+': '+v,'err');f.el.focus();return false}
-  }
-  const ipN=ip.value.split('.').map(Number);
-  const maskN=mask.value.split('.').map(Number);
-  const gwN=gw.value.split('.').map(Number);
-  for(let i=0;i<4;i++){
-    if((ipN[i]&maskN[i])!==(gwN[i]&maskN[i])){
-      setMsg(t('gwSameNet'),'err');gw.focus();return false;
-    }
-  }
+  NET_FIELDS().forEach(f=>f.value=f.value.trim());
+  const e=staticError();
+  liveCheck();
+  if(e){setMsg(netErrText(e.code,e.el),'err');e.el.focus();return false}
   return true;
 }
+NET_FIELDS().forEach(f=>{
+  f.insertAdjacentHTML('afterend',`<div class="field-err" id="${f.id}Err" aria-live="polite"></div>`);
+  f.addEventListener('input',liveCheck);
+});
 
 async function load(){
   try{
@@ -197,6 +221,7 @@ async function load(){
     if(mode.value==='static') fillStaticDefaults(false);
     else fillStaticDefaults(true);
     syncMode();
+    if(mode.value==='static') liveCheck();
   }catch(e){setMsg(t('statusFail')+': '+(e.message||e),'err')}
 }
 
@@ -221,7 +246,7 @@ async function save(e){
     if(x.ok){
       setMsg(t('netSavedRec',{ip:x.fallback||'192.168.2.20'}),'ok');
       setTimeout(load,2000);
-    }else setMsg(x.error||t('saveErr'),'err');
+    }else setMsg(x.error?netErrText(x.error):t('saveErr'),'err');
   }catch(err){setMsg(err.message||String(err),'err')}
 }
 

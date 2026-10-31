@@ -1,0 +1,198 @@
+<!doctype html><html lang=tr><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>MQTT</title><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel=stylesheet href=style.css><script src=i18n.js></script>
+<body data-page-title="mqttTitle"><div class="app" id="appShell"><main class="main">
+<div class="topbar">
+  <div style="display:flex;gap:10px;align-items:flex-start">
+    <button class="menu-btn" id="menuBtn">☰</button>
+    <div><h2 data-i18n="mqttTitle">MQTT</h2><div class="sub" data-i18n="mqttSub">Broker bağlantısı, Home Assistant, log</div></div>
+  </div>
+  <span class="mq-pill" id=mqPill role=status aria-live=polite><span class="mq-dot"></span><span id=mqPillText>—</span></span>
+</div>
+
+<div class="grid">
+<section class="card">
+ <h3 data-i18n="mqttHa">MQTT / Home Assistant</h3>
+ <p class="note" id=mqReason style="margin-top:0"></p>
+ <label class="tog"><input type=checkbox id=en><span class="tog-track"></span><span class="tog-text" data-i18n="mqttOn">MQTT açık</span></label>
+ <label data-i18n="broker">Broker</label><input id=host data-i18n-placeholder="mqttHostPh" placeholder="mqtt.example.com" autocomplete="off">
+ <label data-i18n="port">Port</label><input id=port data-i18n-placeholder="mqttPortPh" placeholder="1883" inputmode="numeric" autocomplete="off">
+ <label data-i18n="mqttUser">Kullanıcı</label><input id=user data-i18n-placeholder="mqttUserPh" placeholder="mqtt" autocomplete="username">
+ <label data-i18n="password">Parola</label><input id=pass type=password data-i18n-placeholder="mqttPassPh" placeholder="(boş=değişmez)" autocomplete="current-password">
+ <label data-i18n="prefix">Prefix</label><input id=prefix data-i18n-placeholder="mqttPrefixPh" placeholder="mpower/mltek" autocomplete="off">
+ <label data-i18n="intervalSec">Aralık (sn)</label><input id=interval data-i18n-placeholder="mqttIntervalPh" placeholder="15" inputmode="numeric">
+ <p class="note" data-i18n="mqttIntervalHint">Aralık yalnız ölçümler (W, V, A) için. Röle değişiklikleri anında gönderilir.</p>
+ <label data-i18n="mqttCustom">Custom</label>
+ <input id=custom data-i18n-placeholder="mqttCustomPh" placeholder="site=warehouse" autocomplete="off" maxlength=240>
+ <p class="note" data-i18n="mqttCustomHint">Broker’a {prefix}/{MAC}/custom ve state JSON içinde custom olarak gider.</p>
+ <label class="tog"><input type=checkbox id=ha><span class="tog-track"></span><span class="tog-text" data-i18n="haDiscovery">HA discovery</span></label>
+ <button id=mqttSaveBtn onclick="mqtt()" data-i18n="mqttSave">MQTT kaydet</button>
+ <div id=mnote class="fw-result" role=status aria-live=polite></div>
+</section>
+
+<section class="card">
+ <h3 data-i18n="mqttLog">MQTT log</h3>
+ <div class="toolbar" style="align-items:center">
+  <label class="tog" style="margin:0"><input type=checkbox id=live><span class="tog-track"></span><span class="tog-text" data-i18n="mqttLive">Canlı log</span></label>
+  <button class=quiet onclick="loadLog()" data-i18n="refresh">Yenile</button>
+  <button class=ghost onclick="clearLog()" data-i18n="mqttClearLog">Temizle</button>
+ </div>
+ <p class="note" data-i18n="mqttLiveHint">Kapalıyken yalnız bağlantı olayları ve hatalar yazılır. Açıkken gönderilen/alınan mesajlar da canlı gelir.</p>
+ <pre class="code mq-log" id=mlog></pre>
+</section>
+
+<section class="card">
+ <h3 data-i18n="mqttTopics">Konular</h3>
+ <pre class="code" id=mqttHelp></pre>
+</section>
+</div>
+</main></div>
+<script>
+MPNav.mount('mqtt');
+function ensure(){if(MPApi.token())return 1;MPApi.setToken();return!!MPApi.token()}
+async function post(u){if(!ensure())throw Error(t('tokenNeed'));return MPApi.req(u,true)}
+const REASON={1:'mqttProtocol',2:'mqttClientId',3:'mqttUnavailable',4:'mqttCredentials',5:'mqttUnauthorized',6:'mqttConnectTimeout',7:'mqttTcpFailed'};
+const WAIT=['connecting','sending_connect','waiting_connack','retrying'];
+function reasonText(x){
+  if(x.state==='failed') return t(REASON[x.code]||'mqttConnectionClosed');
+  if(x.state==='disconnected') return t('mqttConnectionClosed');
+  return '';
+}
+function showStatus(x){
+  const s=x.state, pill=mqPill;
+  let cls='', txt=t('mqttStopped');
+  if(s==='connected'){cls='mq-on';txt=t('mqttOnline')}
+  else if(WAIT.includes(s)){cls='mq-wait';txt=t('mqttConnectingS')}
+  else if(s==='failed'||s==='disconnected'){cls='mq-off';txt=t('mqttOffline')}
+  pill.className='mq-pill '+cls;
+  mqPillText.textContent=txt;
+  const r=reasonText(x);
+  mqReason.textContent=r?'✕ '+r:'';
+  mqReason.style.color=r?'#fca5a5':'';
+  MPNav.mqttDot&&MPNav.mqttDot(s);
+}
+async function getStatus(){
+  return fetch('/cgi-bin/mqttcfg.sh?action=status&_='+Date.now(),{cache:'no-store'}).then(r=>r.json());
+}
+async function pollStatus(){try{showStatus(await getStatus())}catch(e){}}
+
+let mqttDeviceMac='MAC';
+function updateMqttHelp(mac){
+  if(mac)mqttDeviceMac=mac;
+  const id=mqttDeviceMac;
+  const root=(prefix.value||'mpower/mltek').replace(/^\/+|\/+$/g,'');
+  const head=lang()==='en'?'Telemetry (JSON):':'Telemetri (JSON):';
+  const cmds=lang()==='en'?'Commands:':'Komutlar:';
+  const ha=lang()==='en'?'HA compatible:':'HA uyumlu:';
+  mqttHelp.textContent=`${head}\n  ${root}/${id}/state          (custom field included)\n  ${root}/${id}/relay/1        ON|OFF retain (instant)\n  ${root}/${id}/custom         retain\n  ${root}/${id}/outlet/1/json\n\n${cmds}\n  ${root}/${id}/cmd\n  {"action":"on","port":1}\n  {"action":"off","port":2}\n  {"action":"pulse","port":1,"delay":10,"to":1}\n  {"action":"cycle","port":"all","delay":10}\n  {"action":"update","url":"http://pc/pkg.tar"}\n\n${ha}\n  ${root}/${id}/relay/1/set  => ON|OFF`;
+}
+async function loadDev(){try{const x=await fetch('/cgi-bin/device.sh?action=get').then(r=>r.json());updateMqttHelp(x.mac)}catch(e){}}
+async function loadMqtt(){
+  const x=await fetch('/cgi-bin/mqttcfg.sh?action=get').then(r=>r.json());
+  en.checked=x.enabled==1;
+  host.value=x.host||'';
+  port.value=x.port||'';
+  user.value=x.user||'';
+  prefix.value=x.prefix||'mpower/mltek';
+  interval.value=x.interval||'15';
+  custom.value=x.custom||'';
+  ha.checked=x.ha_discovery!=0;
+  updateMqttHelp();
+}
+prefix.addEventListener('input',()=>updateMqttHelp());
+async function mqtt(){
+  if(!ensure())return;
+  const p=new URLSearchParams({
+    action:'set',
+    enabled:en.checked?1:0,
+    host:host.value,
+    port:port.value||'1883',
+    user:user.value,
+    pass:pass.value,
+    prefix:prefix.value||'mpower/mltek',
+    interval:interval.value||'15',
+    ha_discovery:ha.checked?1:0,
+    custom:custom.value||''
+  });
+  mqttMessage(t('mqttSaving'),null,true);
+  mqttSaveBtn.disabled=true;
+  try{
+    const x=await post('/cgi-bin/mqttcfg.sh?'+p);
+    if(x.ok){
+      pass.value='';
+      if(en.checked){
+        mqttMessage(t('mqttConnecting'),null,true);
+        await waitMqttConnection();
+      }else{
+        mqttMessage('✓ '+t('mqttSaved'),true);
+      }
+    }else{
+      mqttMessage('✕ '+t('mqttSaveFailed')+': '+(x.error||t('error')),false);
+    }
+  }catch(e){
+    mqttMessage('✕ '+t('mqttSaveFailed')+': '+(e.message||e),false);
+  }finally{
+    mqttSaveBtn.disabled=false;
+    pollStatus();loadLog();
+  }
+}
+async function waitMqttConnection(){
+  // The client itself gives up after 15 s without CONNACK; allow some slack.
+  const end=Date.now()+22000;
+  while(Date.now()<end){
+    await new Promise(r=>setTimeout(r,1000));
+    try{
+      const x=await getStatus();
+      showStatus(x);
+      if(x.state==='connected'){mqttMessage('✓ '+t('mqttConnected'),true);return}
+      if(x.state==='failed'||x.state==='disconnected'){
+        mqttMessage('✕ '+t('mqttConnectFailed')+': '+reasonText(x)+' — '+t('mqttSeeLog'),false);
+        return;
+      }
+    }catch(e){}
+  }
+  mqttMessage('✕ '+t('mqttConnectFailed')+': '+t('mqttConnectTimeout')+' — '+t('mqttSeeLog'),false);
+}
+function mqttMessage(text,ok,busy=false){
+  mnote.textContent=text;
+  mnote.className='fw-result show '+(ok===true?'success':ok===false?'failed':busy?'busy':'info');
+}
+
+// Log viewer. Lines: "YYYY-MM-DD HH:MM:SS LEVEL text".
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function lineClass(l){
+  if(/ ERR |nc: |can't|refused/i.test(l)) return 'e';
+  if(/ WARN /.test(l)) return 'w';
+  if(/ OK /.test(l)) return 'k';
+  if(/ (TX|RX) /.test(l)) return 'x';
+  return '';
+}
+let lastLog=null;
+async function loadLog(){
+  try{
+    const r=await fetch('/cgi-bin/mqttcfg.sh?action=log&lines=300'+(live.checked?'&live=1':'')+'&_='+Date.now(),{cache:'no-store',credentials:'same-origin'});
+    if(r.status===401){mlog.textContent=t('loginRequired');return}
+    const txt=await r.text();
+    if(txt===lastLog) return;
+    lastLog=txt;
+    const atEnd=mlog.scrollHeight-mlog.scrollTop-mlog.clientHeight<40;
+    const lines=txt.split('\n').filter(Boolean);
+    mlog.innerHTML=lines.length?lines.map(l=>{const c=lineClass(l);return c?`<span class="${c}">${esc(l)}</span>`:esc(l)}).join('\n'):esc(t('mqttLogEmpty'));
+    if(atEnd||live.checked) mlog.scrollTop=mlog.scrollHeight;
+  }catch(e){}
+}
+async function clearLog(){
+  if(!confirm(t('mqttClearConfirm')))return;
+  try{await post('/cgi-bin/mqttcfg.sh?action=clearlog');lastLog=null;loadLog()}catch(e){alert(e.message||e)}
+}
+let liveTimer=null;
+function setLive(on){
+  clearInterval(liveTimer);liveTimer=null;
+  try{localStorage.setItem('mpower-mqtt-live',on?'1':'0')}catch(e){}
+  if(on){loadLog();liveTimer=setInterval(()=>{if(!document.hidden)loadLog()},2000)}
+}
+live.onchange=()=>setLive(live.checked);
+try{live.checked=localStorage.getItem('mpower-mqtt-live')==='1'}catch(e){}
+
+loadDev();loadMqtt();pollStatus();loadLog();setLive(live.checked);
+setInterval(()=>{if(!document.hidden)pollStatus()},3000);
+</script></body></html>

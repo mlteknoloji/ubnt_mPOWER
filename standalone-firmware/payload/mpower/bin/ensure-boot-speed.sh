@@ -1,7 +1,7 @@
 #!/bin/sh
 # Persist boot-acceleration hooks into stock system.cfg (survives reboot via cfgmtd).
 # 1) cron every minute → early-cron.sh (kills sleep 180, starts overlay)
-# 2) optional pwdog → same script a few seconds after rc start (faster)
+# 2) pwdog hook switched off (see below)
 ROOT=/etc/persistent/mpower
 CFG=/tmp/system.cfg
 LOG=/tmp/mpower-boot-speed.log
@@ -41,17 +41,14 @@ put cron.9.job.1.status enabled
 put cron.9.job.1.schedule '* * * * *'
 put cron.9.job.1.cmd "$EARLY"
 
-# Faster path: pwdog runs ~seconds after inittab respawn (same window as SSH).
-# Ping a non-routable address so the failure command fires once; early-cron is idempotent.
-put pwdog.status enabled
-put pwdog.host 169.254.255.254
-put pwdog.delay 5
-put pwdog.retry 1
-put pwdog.period 10
-put pwdog.command "$EARLY"
+# pwdog hook removed: stock starts it as "pwdog -d 180" whatever pwdog.delay
+# says, so it never fired before cron.9 did. It then pinged every 10 s and ran
+# early-cron.sh on each failure for the whole uptime. cron.9 (every minute)
+# remains the boot accelerator.
+put pwdog.status disabled
 
 if cfgmtd -w -p /etc -f "$CFG" > "$LOG" 2>&1; then
-  echo "boot-speed hooks saved (cron.9 + pwdog)" >> "$LOG"
+  echo "boot-speed hooks saved (cron.9, pwdog off)" >> "$LOG"
   exit 0
 fi
 echo "boot-speed save failed" >> "$LOG"

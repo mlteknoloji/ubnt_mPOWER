@@ -64,5 +64,5 @@ async function imp(){
   const r=await fetch('/cgi-bin/backup.sh?action=import&token='+encodeURIComponent(MPApi.token()),{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:buf});
   note.textContent=JSON.stringify(await r.json()); loadHealth();
 }
-loadHealth(); setInterval(loadHealth,8000);
+loadHealth(); setInterval(()=>{if(!document.hidden)loadHealth()},8000);
 </script></body></html>

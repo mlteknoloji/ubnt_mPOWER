@@ -13,7 +13,8 @@ cfg=/etc/persistent/mpower/wifi.conf
 RESULT=/tmp/mpower-wifi-result
 HOLD=/tmp/mpower-wifi.hold
 KEEP_AP=0
-case "$1" in keep-ap) KEEP_AP=1 ;; esac
+BOOT=0
+case "$1" in keep-ap) KEEP_AP=1 ;; boot) BOOT=1 ;; esac
 [ -f "$cfg" ] || exit 0
 LOCK=/tmp/mpower-wifi.lock
 if ! mkdir "$LOCK" 2>/dev/null; then
@@ -75,6 +76,27 @@ if [ ! -f "$netcfg" ]; then
   printf 'mode=dhcp\nip=\nnetmask=\ngateway=\ndns=\ndns2=\n' > "$netcfg"
 elif ! grep -q '^mode=' "$netcfg" 2>/dev/null; then
   printf 'mode=dhcp\nip=\nnetmask=\ngateway=\ndns=\ndns2=\n' > "$netcfg"
+fi
+
+# Boot/service start only: stock already associates ath0 from the profile that
+# stock-wifi-sync.sh mirrored. Re-running wpa_supplicant + DHCP here dropped the
+# link for 5-15 s on every boot. Keep a working link to the configured SSID.
+# (UI connect / backup restore call without "boot" and always reconnect, so new
+# credentials are applied. WDS is not in the stock profile: always reconnect.)
+if [ "$BOOT" = 1 ] && [ "$mode" = station ]; then
+  cur_ssid=$(iwconfig ath0 2>/dev/null | sed -n 's/.*ESSID:"\([^"]*\)".*/\1/p')
+  cur_ap=$(iwconfig ath0 2>/dev/null | sed -n 's/.*Access Point: \([^ ]*\).*/\1/p')
+  cur_ip=$(ifconfig ath0 2>/dev/null | sed -n 's/.*inet addr:\([0-9.]*\).*/\1/p')
+  case "$cur_ap" in ''|Not-Associated|00:00:00:00:00:00) cur_ap= ;; esac
+  if [ "$cur_ssid" = "$ssid" ] && [ -n "$cur_ap" ] && [ -n "$cur_ip" ] && [ "$cur_ip" != 192.168.1.50 ]; then
+    # A static profile still needs its address; that does not touch the link.
+    grep -q '^mode=static' "$netcfg" 2>/dev/null && \
+      /etc/persistent/mpower/bin/network-apply.sh >/tmp/mpower-net.log 2>&1
+    [ -x /etc/persistent/mpower/bin/boot-mark.sh ] && \
+      /etc/persistent/mpower/bin/boot-mark.sh wifi.kept_stock_link
+    write_result ok linked "$cur_ip"
+    exit 0   # cleanup → ap-control sync hides the recovery AP
+  fi
 fi
 
 set_sta_wds() {

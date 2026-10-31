@@ -1,6 +1,7 @@
 #!/bin/sh
-. "$(dirname "$0")/common.sh"
-. "$(dirname "$0")/auth.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
+. "$CGI_DIR/auth.sh"
 action=$(query_get action)
 
 case "$action" in

@@ -8,7 +8,11 @@ Ekran görüntüleri: [OZELLIKLER-TR.md](OZELLIKLER-TR.md)
 
 ![MQTT ayarları](../brochure/software_tr_mqtt.png)
 
-**Ayarlar → MQTT**: `enabled`, broker `host`/`port`, `user`/`pass`, `prefix` (varsayılan `mpower/mltek`), `interval`, `ha_discovery`.
+**Menü → MQTT** (`mqtt.html`): `enabled`, broker `host`/`port`, `user`/`pass`, `prefix` (varsayılan `mpower/mltek`), `interval`, `ha_discovery`.
+
+- Başlıktaki ikon ve menüdeki nokta bağlantı durumunu gösterir: yeşil **Online**, kırmızı **Offline** (sebebiyle), sarı bağlanıyor.
+- **MQTT log** kartı cihazdaki `/tmp/mpower-mqtt.log` dosyasını gösterir: bağlantı olayları ve hatalar (`ERR` kırmızı). **Canlı log** açıkken gönderilen/alınan mesajlar da 2 sn'de bir gelir.
+- Röle değişiklikleri (panel, MQTT, zamanlama, ping, düğme) ~0,5 sn içinde `relay/N` olarak yayınlanır; `interval` yalnız ölçümler içindir.
 
 Topic kökü: `{prefix}/{MAC}/` (varsayılan: `mpower/mltek/{MAC}/`; MAC küçük, `:` yok).
 

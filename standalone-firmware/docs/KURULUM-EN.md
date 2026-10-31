@@ -45,7 +45,7 @@ Flash local Ubiquiti firmware with `deploy.ps1`:
 - Already `MF.v2.1.11` → stock flash skipped (`-ForceStockUpgrade` to force)
 - Do not cut power during flash; script waits for SSH after reboot
 
-Factory reset is available only from Settings. Hold the hardware button about **2 seconds** to reboot; a long hold triggers stock reset and erases the overlay.
+Factory reset: Settings page or hardware button **~10 seconds** — settings cleared, overlay kept. Hardware **~2 seconds**: reboot only.
 
 If no DHCP server responds, the Wi-Fi client uses the emergency profile
 `192.168.1.50/24`, gateway `192.168.1.1`, and DNS `1.1.1.1`, `8.8.8.8`.

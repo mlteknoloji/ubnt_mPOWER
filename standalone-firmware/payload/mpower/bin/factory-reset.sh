@@ -1,6 +1,11 @@
 #!/bin/sh
 # Factory-reset NetRelayMP overlay *settings only* — never delete overlay code.
 # Stock Ubiquiti factory (yellow LED / :8080 UI) wipes /etc/persistent and removes us.
+#
+# Scope: only files the overlay owns (settings under $ROOT, its two boot hooks,
+# its own block in the crontab). It does NOT touch the stock firmware: no stock
+# processes are killed, outlets are not switched, and /tmp/system.cfg (stock
+# settings, incl. the Wi-Fi profile the overlay mirrored there) is left as is.
 ROOT=/etc/persistent/mpower
 LOG=/tmp/mpower-factory-reset.log
 
@@ -17,8 +22,8 @@ fi
 # Stop helpers first
 [ -x "$ROOT/bin/mpower-service.sh" ] && /bin/sh "$ROOT/bin/mpower-service.sh" stop >/dev/null 2>&1 || true
 
-# Best-effort: stop stock paths that wipe /etc/persistent on long reset
-killall wevent 2>/dev/null || true
+# Drop stock wipe flags so a long reset hold cannot erase /etc/persistent
+# (the stock reset handler wevent stays frozen by button-watch; not killed here)
 rm -f /etc/.reset_to_default /etc/persistent/.reset_to_default \
   /tmp/.reset_to_default /var/run/reset_to_default 2>/dev/null || true
 
@@ -29,7 +34,8 @@ rm -rf /tmp/mpower-sess /tmp/mpower-udp-peers.json /tmp/mpower-pingwatch.state 2
 rm -f "$ROOT/wifi.conf" "$ROOT/network.conf" "$ROOT/mqtt.conf" \
   "$ROOT/location.conf" "$ROOT/time.conf" "$ROOT/device.conf" \
   "$ROOT/safety.conf" "$ROOT/ping.conf" "$ROOT/led.conf" "$ROOT/api.conf" \
-  "$ROOT/.setup_done" "$ROOT/api.token" "$ROOT/admin.pass" 2>/dev/null
+  "$ROOT/.setup_done" "$ROOT/api.token" "$ROOT/admin.pass" \
+  "$ROOT/resolv.conf" /etc/persistent/mpower-update-status.json 2>/dev/null
 rm -f "$ROOT/data/schedules.db" 2>/dev/null
 mkdir -p "$ROOT/data"
 
@@ -42,12 +48,12 @@ chmod 600 "$ROOT/api.token"
 printf 'name=NetRelayMP\n' > "$ROOT/device.conf"
 printf 'lat=41.1592\nlon=27.8000\ntz=3\n' > "$ROOT/location.conf"
 printf 'ntp=pool.ntp.org\n' > "$ROOT/time.conf"
-printf 'enabled=1\n' > "$ROOT/api.conf"
+printf 'enabled=0\n' > "$ROOT/api.conf"
 printf 'enabled1=0\nhost1=\ninterval1=30\nfail_count1=3\nfail_action1=off\nrestore_sec1=10\ncooldown1=60\nenabled2=0\nhost2=\ninterval2=30\nfail_count2=3\nfail_action2=off\nrestore_sec2=10\ncooldown2=60\nenabled3=0\nhost3=\ninterval3=30\nfail_count3=3\nfail_action3=off\nrestore_sec3=10\ncooldown3=60\n' > "$ROOT/ping.conf"
 /bin/sh "$ROOT/bin/schedule-cron.sh" >>/tmp/mpower-scheduler.log 2>&1
 
-# Relays off
-for p in 1 2 3; do printf 0 > /proc/power/relay$p 2>/dev/null; done
+# Outlets are deliberately left alone: relay state is not an overlay setting,
+# and cutting power to the loads would be a stock-side effect.
 
 # Re-assert boot hook from embedded copy (survives accidental rc.poststart loss)
 if [ -f "$ROOT/share/rc.poststart" ]; then
@@ -76,8 +82,12 @@ if [ ! -f "$ROOT/bin/mpower-service.sh" ] || [ ! -f "$ROOT/www/index.html" ]; th
   exit 1
 fi
 
-cfgmtd -w -p /etc >/dev/null 2>&1
-log "cfgmtd done — verify then reboot"
+if ! cfgmtd -w -p /etc >>"$LOG" 2>&1; then
+  log "ERROR: cfgmtd failed; keeping device running to avoid losing reset changes"
+  /bin/sh "$ROOT/bin/mpower-service.sh" start >/tmp/mpower-standalone.log 2>&1 &
+  exit 1
+fi
+log "cfgmtd done — reboot"
 
 sync
 sleep 1

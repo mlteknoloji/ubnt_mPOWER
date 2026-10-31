@@ -30,7 +30,7 @@ set +f
 IFS=$oldifs
 [ -n "$token" ] || token=${HTTP_X_MPOWER_TOKEN:-}
 
-tok=; rest=1
+tok=; rest=0
 if [ -f "$CACHE" ]; then
   while IFS= read line; do
     case "$line" in
@@ -40,14 +40,14 @@ if [ -f "$CACHE" ]; then
   done < "$CACHE"
 else
   tok=$(tr -d '\r\n' < "$TOKEN_FILE" 2>/dev/null)
-  [ -f "$API_CONF" ] && grep -q '^enabled=0$' "$API_CONF" && rest=0
+  [ -f "$API_CONF" ] && grep -q '^enabled=1$' "$API_CONF" && rest=1
   printf 'token=%s\nrest=%s\n' "$tok" "$rest" > "$CACHE"
 fi
 
 ok=0
-if [ "$rest" != 0 ] && [ -n "$token" ] && [ -n "$tok" ] && [ "$token" = "$tok" ]; then
+if [ "$rest" = 1 ] && [ -n "$token" ] && [ -n "$tok" ] && [ "$token" = "$tok" ]; then
   ok=1
-elif [ "$rest" != 0 ] && [ ! -f "$TOKEN_FILE" ]; then
+elif [ "$rest" = 1 ] && [ ! -f "$TOKEN_FILE" ]; then
   ok=1
 else
   sid=
@@ -56,6 +56,7 @@ else
       sid=${HTTP_COOKIE#*MPOWERSESS=}
       sid=${sid%%;*}
       sid=${sid%% *}
+      case "$sid" in *[!A-Za-z0-9]*) sid= ;; esac
       ;;
   esac
   [ -n "$sid" ] && [ -f "/tmp/mpower-sess/$sid" ] && ok=1

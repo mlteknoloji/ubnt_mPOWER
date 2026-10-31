@@ -6,8 +6,9 @@
 # days: * or subset of 0-6 (0=Sun) e.g. 12345
 # duration: seconds for pulse (on then restore/off)
 # offset: minutes relative to sunrise/sunset (e.g. -30, +30)
-. "$(dirname "$0")/common.sh"
-. "$(dirname "$0")/auth.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
+. "$CGI_DIR/auth.sh"
 file=$MP_DATA/schedules.db
 mkdir -p "$MP_DATA"
 persist() {

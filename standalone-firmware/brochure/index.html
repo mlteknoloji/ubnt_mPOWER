@@ -402,7 +402,7 @@ footer{
       <article class="feat reveal"><strong>Ping izleme</strong><p>IP’ye erişilemezse örn. port 1’i 10 sn kapat, sonra eski haline dön. Aç / kapa / tersine; cooldown peş peşe tetiklemeyi keser.</p></article>
       <article class="feat reveal"><strong>Watchdog</strong><p>~30 sn: httpd :8088, Wi‑Fi, NTP, MQTT, zamanlayıcı, ping, UDP keşif ve buton izleme. Düşeni yeniden ayağa kaldırır.</p></article>
       <article class="feat reveal"><strong>Filo &amp; keşif</strong><p>JSON yedek/geri yükleme, <code>clone-config.ps1</code>, UDP 5555 “ben buradayım” (NRfinder :8088 açar). Overlay tarayıcıdan veya MQTT URL ile güncellenir.</p></article>
-      <article class="feat reveal"><strong>LED, oturum, reset</strong><p>LED: STA’da mavi, kurtarmada sarı, istenirse kapalı. Giriş <code>admin</code> / <code>mltek</code>. Fabrika yalnız Ayarlar’dan; fiziksel düğme ~2 sn reboot — uzun basmak overlay’i siler.</p></article>
+      <article class="feat reveal"><strong>LED, oturum, reset</strong><p>LED: STA’da mavi, kurtarmada sarı, istenirse kapalı. Giriş <code>admin</code> / <code>mltek</code>. Fabrika: Ayarlar veya fiziksel düğme ~10 sn (ayarlar sıfır, yazılım kalır); ~2 sn yalnız reboot.</p></article>
     </div>
   </div>
 </section>
@@ -491,7 +491,7 @@ footer{
       </details>
       <details>
         <summary>Kurulum ve varsayılan giriş nedir?</summary>
-        <p>Windows’tan <code>deploy.ps1</code>; UI ~1 dk içinde :8088. Giriş: <code>admin</code> / <code>mltek</code>. Fabrika yalnız Ayarlar’dan (overlay kalır). Fiziksel düğme ~2 sn reboot; uzun basmak stok sıfırlama yapıp overlay’i siler.</p>
+        <p>Windows’tan <code>deploy.ps1</code>; UI ~1 dk içinde :8088. Giriş: <code>admin</code> / <code>mltek</code>. Fabrika: Ayarlar veya düğme ~10 sn (ayarlar sıfır, overlay kalır). ~2 sn yalnız reboot.</p>
       </details>
       <details>
         <summary>İnternet olmadan çalışır mı?</summary>

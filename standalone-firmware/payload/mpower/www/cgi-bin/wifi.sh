@@ -2,7 +2,8 @@
 # Wi-Fi CGI — always emit valid JSON (BusyBox-safe).
 # Connect: write conf + reply FIRST, then start radio in background
 # (STA associate can drop recovery AP mid-response → browser "Failed to fetch").
-. "$(dirname "$0")/common.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
 header() { printf 'Content-Type: application/json; charset=utf-8\r\nCache-Control: no-store\r\n\r\n'; }
 raw() { query_get "$1"; }
 
@@ -82,7 +83,7 @@ if [ "$action" = status ]; then
   exit 0
 fi
 
-. "$(dirname "$0")/auth.sh"
+. "$CGI_DIR/auth.sh"
 require_token || exit 0
 [ "$action" = connect ] || { header; printf '{"ok":false,"error":"unknown action"}'; exit 0; }
 ssid=$(url_decode "$(raw ssid)")

@@ -5,7 +5,7 @@ Custom web UI and services for EOL Ubiquiti mFi mPower (**MF.v2.1.11**). Runs be
 - UI: `http://IP:8088` · login `admin` / `mltek`
 - Stock UI remains on `:8080`
 - Branding: **NetRelayMP**
-- Factory reset: use the Settings UI only. Hardware reset: hold about **2 seconds** to reboot; never long-hold (stock firmware erases the overlay).
+- Factory reset: Settings UI or hardware button **~10 s** (clears settings, keeps overlay). Hardware **~2 s**: reboot only.
 
 ## Quick start
 

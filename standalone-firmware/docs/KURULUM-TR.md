@@ -48,7 +48,7 @@ cd ubnt_mPOWER\standalone-firmware
 `-KeepToken`: mevcut API token korunur.  
 Kurulum sonrası: `http://IP:8088` · `admin` / `mltek`
 
-Fabrika ayarları yalnız Ayarlar sayfasından yapılır. Fiziksel düğme yaklaşık **2 saniye** ile yeniden başlatır; uzun basmak stock firmware'i tetikleyip overlay'i siler.
+Fabrika ayarları: Ayarlar sayfası veya fiziksel düğme **~10 saniye** — ayarlar sıfırlanır, yazılım kalır. Fiziksel düğme **~2 saniye**: yalnız yeniden başlatır.
 
 DHCP sunucusu yanıt vermezse Wi-Fi istemcisi `192.168.1.50/24`, ağ geçidi
 `192.168.1.1`, DNS `1.1.1.1` ve `8.8.8.8` acil erişim profiline geçer.

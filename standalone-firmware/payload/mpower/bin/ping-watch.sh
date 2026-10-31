@@ -56,16 +56,30 @@ migrate_cfg() {
   log "migrated legacy ping.conf → 3 rules (active port=$po)"
 }
 
+# Read ping.conf once per loop with the read builtin (was 21 sed|head pairs).
+# Sets c_<key><port> for the 7 known keys; unknown keys are ignored.
+load_cfg() {
+  for k in enabled host interval fail_count fail_action restore_sec cooldown; do
+    for n in 1 2 3; do eval "c_$k$n="; done
+  done
+  cfg_new=0; cfg_legacy=0
+  [ -f "$CFG" ] || return 0
+  while IFS= read line; do
+    k=${line%%=*}; v=${line#*=}
+    case "$k" in
+      enabled[123]|host[123]|interval[123]|fail_count[123]|fail_action[123]|restore_sec[123]|cooldown[123])
+        eval "c_$k=\$v"
+        [ "$k" = enabled1 ] && cfg_new=1 ;;
+      enabled) cfg_legacy=1 ;;
+    esac
+  done < "$CFG"
+}
+
 load_rule() {
   # sets: enabled host interval fail_count fail_action restore_sec cooldown  for port $1
   p=$1
-  enabled=$(cfg_get "enabled$p")
-  host=$(cfg_get "host$p")
-  interval=$(cfg_get "interval$p")
-  fail_count=$(cfg_get "fail_count$p")
-  fail_action=$(cfg_get "fail_action$p")
-  restore_sec=$(cfg_get "restore_sec$p")
-  cooldown=$(cfg_get "cooldown$p")
+  eval "enabled=\$c_enabled$p host=\$c_host$p interval=\$c_interval$p fail_count=\$c_fail_count$p"
+  eval "fail_action=\$c_fail_action$p restore_sec=\$c_restore_sec$p cooldown=\$c_cooldown$p"
   case "$enabled" in 1) ;; *) enabled=0;; esac
   case "$interval" in ''|*[!0-9]*) interval=30;; esac
   [ "$interval" -lt 5 ] && interval=5
@@ -79,15 +93,17 @@ load_rule() {
   [ "$restore_sec" -gt 600 ] && restore_sec=600
   case "$cooldown" in ''|*[!0-9]*) cooldown=60;; esac
   [ "$cooldown" -gt 3600 ] && cooldown=3600
-  host=$(printf '%s' "$host" | tr -cd 'A-Za-z0-9._:-')
+  # pingwatch.sh CGI already sanitizes; only fork tr for a hand-edited file.
+  case "$host" in *[!A-Za-z0-9._:-]*) host=$(printf '%s' "$host" | tr -cd 'A-Za-z0-9._:-') ;; esac
 }
 
 # Per-rule runtime (BusyBox: use files under /tmp)
 RDIR=/tmp/mpower-pingrules
 mkdir -p "$RDIR"
 
-rget() { # rget PORT KEY
-  cat "$RDIR/$1.$2" 2>/dev/null || echo 0
+rgetv() { # rgetv PORT KEY -> rv (no subshell)
+  rv=0; [ -f "$RDIR/$1.$2" ] && read rv < "$RDIR/$1.$2"
+  [ -n "$rv" ] || rv=0
 }
 rset() { # rset PORT KEY VAL
   printf '%s' "$3" > "$RDIR/$1.$2"
@@ -98,12 +114,12 @@ write_state() {
   {
     printf 'running=1\n'
     for p in 1 2 3; do
-      printf 'fails%s=%s\n' "$p" "$(rget $p fails)"
-      printf 'last_ok%s=%s\n' "$p" "$(rget $p last_ok)"
-      printf 'last_fail%s=%s\n' "$p" "$(rget $p last_fail)"
-      printf 'last_action%s=%s\n' "$p" "$(rget $p last_action)"
-      printf 'busy%s=%s\n' "$p" "$(rget $p busy)"
-      printf 'host%s=%s\n' "$p" "$(cfg_get host$p)"
+      rgetv $p fails; printf 'fails%s=%s\n' "$p" "$rv"
+      rgetv $p last_ok; printf 'last_ok%s=%s\n' "$p" "$rv"
+      rgetv $p last_fail; printf 'last_fail%s=%s\n' "$p" "$rv"
+      rgetv $p last_action; printf 'last_action%s=%s\n' "$p" "$rv"
+      rgetv $p busy; printf 'busy%s=%s\n' "$p" "$rv"
+      eval "printf 'host%s=%s\n' \"\$p\" \"\$c_host$p\""
     done
   } > "$stmp" && mv "$stmp" "$STATE"
 }
@@ -117,7 +133,6 @@ start_action() {
     off) target=0 ;;
     toggle) [ "$prev" = 1 ] && target=0 || target=1 ;;
   esac
-  now=$(date +%s 2>/dev/null || echo 0)
   rset "$p" prev "$prev"
   rset "$p" busy 1
   rset "$p" restore_until $((now + restore_sec))
@@ -130,7 +145,7 @@ start_action() {
 
 finish_restore() {
   p=$1
-  prev=$(rget "$p" prev)
+  rgetv "$p" prev; prev=$rv
   printf '%s' "$prev" > /proc/power/relay"$p"
   log "r$p restored to $prev"
   rset "$p" busy 0
@@ -140,11 +155,10 @@ finish_restore() {
 process_rule() {
   p=$1
   load_rule "$p"
-  now=$(date +%s 2>/dev/null || echo 0)
 
   # complete restore if due
-  busy=$(rget "$p" busy)
-  ru=$(rget "$p" restore_until)
+  rgetv "$p" busy; busy=$rv
+  rgetv "$p" restore_until; ru=$rv
   if [ "$busy" = 1 ] && [ "$ru" -gt 0 ] 2>/dev/null && [ "$now" -ge "$ru" ] 2>/dev/null; then
     finish_restore "$p"
   fi
@@ -154,17 +168,17 @@ process_rule() {
     return 0
   fi
 
-  busy=$(rget "$p" busy)
+  rgetv "$p" busy; busy=$rv
   if [ "$busy" = 1 ]; then
     return 0
   fi
 
-  cu=$(rget "$p" cool_until)
+  rgetv "$p" cool_until; cu=$rv
   if [ "$cu" -gt 0 ] 2>/dev/null && [ "$now" -lt "$cu" ] 2>/dev/null; then
     return 0
   fi
 
-  lp=$(rget "$p" last_ping)
+  rgetv "$p" last_ping; lp=$rv
   if [ "$lp" -gt 0 ] 2>/dev/null && [ $((now - lp)) -lt "$interval" ] 2>/dev/null; then
     return 0
   fi
@@ -174,7 +188,7 @@ process_rule() {
     rset "$p" fails 0
     rset "$p" last_ok "$now"
   else
-    fails=$(rget "$p" fails)
+    rgetv "$p" fails; fails=$rv
     fails=$((fails + 1))
     rset "$p" fails "$fails"
     rset "$p" last_fail "$now"
@@ -196,10 +210,14 @@ for p in 1 2 3; do
 done
 
 log "ping-watch start (3 rules)"
+load_cfg
 write_state
 
 while true; do
-  migrate_cfg
+  load_cfg
+  # Legacy single-rule file (e.g. restored from an old backup): convert once.
+  [ "$cfg_new" = 0 ] && [ "$cfg_legacy" = 1 ] && { migrate_cfg; load_cfg; }
+  now=$(date +%s 2>/dev/null || echo 0)
   for p in 1 2 3; do
     process_rule "$p"
   done

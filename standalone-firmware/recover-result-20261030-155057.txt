@@ -1,0 +1,107 @@
+=== device-recover 192.168.1.132 10/30/2026 15:50:57
+== facts
+1.3.32
+781
+== free before
+              total         used         free       shared      buffers
+  Mem:        29564        22960         6604            0          892
+ Swap:            0            0            0
+Total:        29564        22960         6604
+== df
+Filesystem           1k-blocks      Used Available Use% Mounted on
+rootfs                    5888      5888         0 100% /
+/dev/root                 5888      5888         0 100% /
+tmpfs                    10240      2368      7872  23% /var
+dev                      14780         0     14780   0% /dev
+== /proc/mtd
+dev:    size   erasesize  name
+mtd0: 00040000 00010000 "u-boot"
+mtd1: 00010000 00010000 "u-boot-env"
+mtd2: 00100000 00010000 "kernel"
+mtd3: 00660000 00010000 "rootfs"
+mtd4: 00040000 00010000 "cfg"
+mtd5: 00010000 00010000 "EEPROM"
+== persistent size
+860	/etc/persistent
+4	/etc/persistent/mpower-update-status.json
+4	/etc/persistent/rc.poststart
+4	/etc/persistent/rc.prestart
+130808
+== whole etc gz bytes
+94
+== mtd errors
+== etc sizes
+drwxr-xr-x    7 ubnt     admin         200 Oct 30 12:49 .
+drwxr-xr-x   11 ubnt     admin         820 Jan  1  1970 ..
+drwxr-xr-x    2 ubnt     admin          40 Jan  1  1970 bin
+drwxr-xr-x    2 ubnt     admin          80 Jan  1  1970 cfg
+drwxr-xr-x    2 ubnt     admin        1640 Jan  1  1970 data
+drwxr-xr-x    2 ubnt     admin          40 Jan  1  1970 log
+drwxr-xr-x    6 ubnt     admin         400 Oct 30 12:49 mpower
+-rw-r--r--    1 ubnt     admin          68 Aug 12 11:24 mpower-update-status.json
+-rwxr-xr-x    1 ubnt     admin         969 Oct 30 12:49 rc.poststart
+-rwxr-xr-x    1 ubnt     admin         561 Oct 30 12:49 rc.prestart
+4	/etc/startup.list
+4	/etc/ubnt-upnp
+4	/etc/udhcpc_services
+4	/etc/version
+8	/etc/default.cfg
+12	/etc/avahi
+12	/etc/dbus-1
+12	/etc/udhcpc
+88	/etc/sysinit
+860	/etc/persistent
+== /tmp big files
+4	/tmp/mpower-udp-peers.json
+4	/tmp/mpower-watchdog.log
+4	/tmp/mpower-wifi-result
+4	/tmp/mpower-wpa.conf
+8	/tmp/running.cfg
+8	/tmp/system.cfg
+16	/tmp/sysinit.txt
+900	/tmp/mpower-pkg
+== processes
+65
+9
+== start services
+ 1125 ubnt      1980 S    /bin/pwdog -d 180 -p 10 -c 1 -m 300 -e /etc/persistent/mpower/bin/early-cron.sh 169.254.255.254 
+ 6675 ubnt      1976 S    /sbin/httpd -p 8088 -h /etc/persistent/mpower/www 
+ 6730 ubnt      2024 S    /bin/sh /etc/persistent/mpower/bin/watchdog.sh 
+ 6752 ubnt      1988 S    /bin/sh /etc/persistent/mpower/bin/udp-discover.sh 
+ 6774 ubnt      1980 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+ 6791 ubnt       164 S    /etc/persistent/mpower/bin/udp-beacon both 5555 /tmp/mpower-udp-peers.json 5 netRelay is here, NetRelayMP,
+ 6797 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+ 7254 ubnt      1984 S    sh -c echo == facts; cat /etc/persistent/mpower/.installed; cut -d. -f1 /proc/uptime echo == free before; 
+ 7351 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/mpower-service.sh start 
+ 7353 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/time-sync.sh 
+ 7367 ubnt      1988 S    /bin/sh /etc/persistent/mpower/bin/wifi-client.sh 
+ 7447 ubnt      1976 S    grep -e mpower/ -e httpd -p 80[8]8 
+== dmesg tail
+[  772.120000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  772.912000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  773.420000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  777.632000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  777.680000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  781.568000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  785.174000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  785.251000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  786.344000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  789.068000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  789.135000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  790.297000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  793.654000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[  794.824000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=2, valid=1 
+[  794.824000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+== measure 60s
+2026-10-30 12:52:20 label=diag secs=60 forks=600 forks/min=600 cpu_idle=12% load=8.02/6.06/3.29 memfree_kb=7856 cached_kb=6856
+ 1125 ubnt      1980 S    /bin/pwdog -d 180 -p 10 -c 1 -m 300 -e /etc/persistent/mpower/bin/early-cron.sh 169.254.255.254 
+ 6675 ubnt      1976 S    /sbin/httpd -p 8088 -h /etc/persistent/mpower/www 
+ 6730 ubnt      2024 S    /bin/sh /etc/persistent/mpower/bin/watchdog.sh 
+ 6752 ubnt      1988 S    /bin/sh /etc/persistent/mpower/bin/udp-discover.sh 
+ 6774 ubnt      1980 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+ 6791 ubnt       168 S    /etc/persistent/mpower/bin/udp-beacon both 5555 /tmp/mpower-udp-peers.json 5 netRelay is here, NetRelayMP,
+ 6797 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+ 7254 ubnt      1984 S    sh -c echo == facts; cat /etc/persistent/mpower/.installed; cut -d. -f1 /proc/uptime echo == free before; 
+ 7460 ubnt      1980 S    sh /etc/persistent/mpower/bin/measure.sh 60 diag 
+ssh exit=0
+status.sh: {"version":"MF.v2.1.11","overlay":"1.3.32","uptime":859,"ssid":"SinAPS-IoT","ip":"192.168.1.132","mac":"24a43cd75475","hostname":"mFi-mPower-D65475","name":"NetRelayMP","now":"2026-10-30 12:52:22","synced":1,"outlets":[{"port":1,"relay":1,"watt":0.0,"wh":0.0,"volt":226.150212764,"amp":0.0,"pf":0.0},{"port":2,"relay":1,"watt":0.0,"wh":0.0,"volt":225.740158796,"amp":0.0,"pf":0.0},{"port":3,"relay":1,"watt":0.0,"wh":0.0,"volt":225.182061195,"amp":0.0,"pf":0.0}]}

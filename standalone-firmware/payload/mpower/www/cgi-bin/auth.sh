@@ -1,11 +1,13 @@
 #!/bin/sh
 # Auth: API token (REST) and/or web session cookie (UI).
-. "$(dirname "$0")/common.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
 token_file=$MP_ROOT/api.token
 pass_file=$MP_ROOT/admin.pass
 
 has_session() {
-  sid=$(cookie_get MPOWERSESS)
+  cookie_val MPOWERSESS
+  sid=$cv
   [ -n "$sid" ] && [ -f "/tmp/mpower-sess/$sid" ]
 }
 
@@ -20,19 +22,22 @@ AUTH_CACHE=/tmp/mpower-auth.cache
 write_auth_cache() {
   tok=$(tr -d '\r\n' < "$token_file" 2>/dev/null)
   v=$(sed -n 's/^enabled=//p' "$MP_ROOT/api.conf" 2>/dev/null | head -1)
-  [ "$v" = 0 ] && r=0 || r=1
+  [ "$v" = 1 ] && r=1 || r=0
   printf 'token=%s\nrest=%s\n' "$tok" "$r" > "$AUTH_CACHE"
 }
 
-# api.conf enabled=0 turns off token REST. Missing file = on.
+# Token REST is on only with api.conf enabled=1. Missing file = off.
 rest_enabled() {
   if [ -f "$AUTH_CACHE" ]; then
-    v=$(sed -n 's/^rest=//p' "$AUTH_CACHE" | head -1)
-    [ "$v" != 0 ]
+    v=
+    while IFS= read line; do
+      case "$line" in rest=*) v=${line#rest=}; break ;; esac
+    done < "$AUTH_CACHE"
+    [ "$v" = 1 ]
     return $?
   fi
   v=$(sed -n 's/^enabled=//p' "$MP_ROOT/api.conf" 2>/dev/null | head -1)
-  [ "$v" != 0 ]
+  [ "$v" = 1 ]
 }
 
 deny_json() {
@@ -57,14 +62,14 @@ require_token() {
   if [ -n "$supplied" ]; then
     [ -f "$AUTH_CACHE" ] || write_auth_cache
     expected=
-    rest=1
+    rest=0
     while IFS= read line; do
       case "$line" in
         token=*) expected=${line#token=} ;;
         rest=*) rest=${line#rest=} ;;
       esac
     done < "$AUTH_CACHE"
-    if [ "$rest" != 0 ] && [ "$supplied" = "$expected" ]; then return 0; fi
+    if [ "$rest" = 1 ] && [ "$supplied" = "$expected" ]; then return 0; fi
   fi
   if has_session; then return 0; fi
   if ! rest_enabled && ! is_local_cgi; then

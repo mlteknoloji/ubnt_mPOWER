@@ -1,7 +1,8 @@
 #!/bin/sh
 # Overlay firmware update via browser (raw tar body or ?url=).
-. "$(dirname "$0")/common.sh"
-. "$(dirname "$0")/auth.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
+. "$CGI_DIR/auth.sh"
 require_token || exit 0
 action=$(query_get action)
 [ -z "$action" ] && action=upload

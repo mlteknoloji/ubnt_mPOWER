@@ -50,6 +50,11 @@ for pat in 'mpower/bin/watchdog.sh' 'mpower/bin/ping-watch.sh' 'mpower/bin/udp-d
     case "$pid" in ''|*[!0-9]*) ;; *) kill "$pid" 2>/dev/null || true ;; esac
   done
 done
+# A watcher stuck in cat ignores SIGTERM and keeps the old script + lock.
+ps w 2>/dev/null | grep 'mpower/bin/button-watch.sh' | grep -v grep | while read pid rest; do
+  case "$pid" in ''|*[!0-9]*) ;; *) kill -9 "$pid" 2>/dev/null || true ;; esac
+done
+rm -rf /tmp/mpower-button.lock
 sleep 1
 
 mkdir -p /etc/persistent
@@ -57,6 +62,9 @@ rm -rf /etc/persistent/mpower
 cp -a "$PAYLOAD/mpower" /etc/persistent/mpower
 cp "$PAYLOAD/rc.poststart" /etc/persistent/rc.poststart
 cp "$PAYLOAD/rc.prestart" /etc/persistent/rc.prestart
+# Editor backups are not firmware. They overflow the 256KB cfg partition.
+rm -f /etc/persistent/mpower/www/*.backup /etc/persistent/mpower/bin/*.backup \
+  /etc/persistent/mpower/share/*.backup 2>/dev/null || true
 chmod 755 /etc/persistent/rc.poststart
 chmod 755 /etc/persistent/rc.prestart
 chmod 755 /etc/persistent/mpower/bin/*.sh
@@ -100,6 +108,7 @@ if [ -n "$KEEP_PASS" ]; then
 fi
 
 printf '%s\n' "$VERSION" > /etc/persistent/mpower/.installed
+rm -f /tmp/mpower-static.cache
 date > /etc/persistent/mpower/.installed.at 2>/dev/null || true
 
 # Default admin password hash for "mltek" if missing; migrate legacy "ubnt"
@@ -128,8 +137,9 @@ rm -f /etc/persistent/mpower/safety.conf
 if [ ! -f /etc/persistent/mpower/ping.conf ]; then
   printf 'enabled=0\nhost=\ninterval=30\nfail_count=3\nport=1\nfail_action=off\nrestore_sec=10\ncooldown=60\n' > /etc/persistent/mpower/ping.conf
 fi
+# REST API starts disabled on new installs; an existing choice is kept above.
 if [ ! -f /etc/persistent/mpower/api.conf ]; then
-  printf 'enabled=1\n' > /etc/persistent/mpower/api.conf
+  printf 'enabled=0\n' > /etc/persistent/mpower/api.conf
 fi
 
 chmod 755 /etc/persistent/mpower/bin/* /etc/persistent/mpower/www/cgi-bin/* 2>/dev/null
@@ -166,7 +176,11 @@ fi
 /bin/sh /etc/persistent/mpower/bin/ensure-boot-speed.sh >/tmp/mpower-boot-speed.log 2>&1 || true
 sync
 if ! cfgmtd -w -p /etc >/tmp/mpower-cfgmtd.log 2>&1; then
+  # Never leave the device without its UI/services: start them from RAM
+  # before reporting the failure (old services were stopped above).
+  /etc/persistent/mpower/bin/mpower-service.sh start >/tmp/mpower-standalone.log 2>&1 || true
   echo "ERROR: cfgmtd flash write failed; overlay is running from RAM only" >&2
+  free >&2 2>/dev/null || true
   cat /tmp/mpower-cfgmtd.log >&2 2>/dev/null || true
   df -h /etc/persistent >&2 2>/dev/null || true
   exit 1
@@ -181,7 +195,9 @@ echo "Flash persistence: OK"
 /etc/persistent/mpower/bin/mpower-service.sh start >/tmp/mpower-standalone.log 2>&1 || true
 
 TOKEN=$(tr -d '\r\n' < /etc/persistent/mpower/api.token)
-IP=$(ifconfig br0 2>/dev/null | sed -n 's/.*inet addr:\([0-9.]*\).*/\1/p')
+# ath0 is the LAN client. br0 is often only the recovery address 192.168.2.20.
+IP=$(ifconfig ath0 2>/dev/null | sed -n 's/.*inet addr:\([0-9.]*\).*/\1/p')
+case "$IP" in ''|192.168.1.50) IP=$(ifconfig br0 2>/dev/null | sed -n 's/.*inet addr:\([0-9.]*\).*/\1/p') ;; esac
 [ -n "$IP" ] || IP=192.168.2.20
 
 echo "OK installed"

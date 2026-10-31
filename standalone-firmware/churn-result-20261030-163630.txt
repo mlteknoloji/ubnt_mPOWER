@@ -1,0 +1,56 @@
+=== device-recover 192.168.1.132 10/30/2026 16:36:30
+== facts
+1.3.35
+3513
+== ap state
+down
+ath1 flags=0x1302
+ath2 flags=0x1302
+== pid churn 60s
+3513 hostapd=30686 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3519 hostapd=30719 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3525 hostapd=30741 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3530 hostapd=30766 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3536 hostapd=30785 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3542 hostapd=30805 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3548 hostapd=30825 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3554 hostapd=30846 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3559 hostapd=30869 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3564 hostapd=30888 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3570 hostapd=30907 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+3575 hostapd=30925 mcad=30673 wpa= udhcpc=26038 ath1=0x1302
+== ap log
+== watchdog log
+Fri Oct 30 12:39:41 UTC 2026 httpd duplicates=2 ÔÇö cleanup
+Fri Oct 30 12:42:21 UTC 2026 watchdog start
+Fri Oct 30 12:45:11 UTC 2026 watchdog start
+Fri Oct 30 12:47:29 UTC 2026 watchdog start
+Fri Oct 30 12:47:29 UTC 2026 httpd duplicates=2 ÔÇö cleanup
+Fri Oct 30 12:47:34 UTC 2026 button-watch restart
+Fri Oct 30 12:50:19 UTC 2026 watchdog start
+Fri Oct 30 12:50:19 UTC 2026 button-watch restart
+Fri Oct 30 12:55:05 UTC 2026 httpd duplicates=2 ÔÇö cleanup
+Fri Oct 30 13:03:23 UTC 2026 watchdog start
+Fri Oct 30 13:05:30 UTC 2026 httpd duplicates=2 ÔÇö cleanup
+Fri Oct 30 13:16:38 UTC 2026 watchdog start
+Fri Oct 30 13:18:14 UTC 2026 httpd duplicates=2 ÔÇö cleanup
+Fri Oct 30 13:28:43 UTC 2026 watchdog start
+Fri Oct 30 13:31:58 UTC 2026 httpd duplicates=2 ÔÇö cleanup
+== syslog hostapd mcad
+Oct 30 13:37:37 mFi-mPower-D65475 daemon.info init: starting pid 30923, tty '/dev/null': '/bin/hostapd /etc/aaa1.cfg'
+Oct 30 13:37:38 mFi-mPower-D65475 daemon.info init: process '/bin/hostapd /etc/aaa1.cfg' (pid 30923) exited. Scheduling for restart.
+Oct 30 13:37:38 mFi-mPower-D65475 daemon.info init: starting pid 30925, tty '/dev/null': '/bin/hostapd /etc/aaa1.cfg'
+Oct 30 13:37:39 mFi-mPower-D65475 daemon.info init: process '/bin/hostapd /etc/aaa1.cfg' (pid 30925) exited. Scheduling for restart.
+Oct 30 13:37:39 mFi-mPower-D65475 daemon.info init: starting pid 30934, tty '/dev/null': '/bin/hostapd /etc/aaa1.cfg'
+Oct 30 13:37:40 mFi-mPower-D65475 daemon.info init: process '/bin/hostapd /etc/aaa1.cfg' (pid 30934) exited. Scheduling for restart.
+Oct 30 13:37:40 mFi-mPower-D65475 daemon.info init: starting pid 30935, tty '/dev/null': '/bin/hostapd /etc/aaa1.cfg'
+Oct 30 13:37:41 mFi-mPower-D65475 daemon.info init: process '/bin/hostapd /etc/aaa1.cfg' (pid 30935) exited. Scheduling for restart.
+Oct 30 13:37:41 mFi-mPower-D65475 daemon.info init: starting pid 30938, tty '/dev/null': '/bin/hostapd /etc/aaa1.cfg'
+Oct 30 13:37:42 mFi-mPower-D65475 daemon.info init: process '/bin/hostapd /etc/aaa1.cfg' (pid 30938) exited. Scheduling for restart.
+Oct 30 13:37:42 mFi-mPower-D65475 daemon.info init: starting pid 30941, tty '/dev/null': '/bin/hostapd /etc/aaa1.cfg'
+Oct 30 13:37:43 mFi-mPower-D65475 daemon.info init: process '/bin/hostapd /etc/aaa1.cfg' (pid 30941) exited. Scheduling for restart.
+Oct 30 13:37:43 mFi-mPower-D65475 daemon.info init: starting pid 30944, tty '/dev/null': '/bin/hostapd /etc/aaa1.cfg'
+Oct 30 13:37:44 mFi-mPower-D65475 daemon.info init: process '/bin/hostapd /etc/aaa1.cfg' (pid 30944) exited. Scheduling for restart.
+Oct 30 13:37:44 mFi-mPower-D65475 daemon.info init: starting pid 30949, tty '/dev/null': '/bin/hostapd /etc/aaa1.cfg'
+ssh exit=0
+status.sh: {"version":"MF.v2.1.11","overlay":"1.3.35","uptime":3582,"ssid":"SinAPS-IoT","ip":"192.168.1.132","mac":"24a43cd75475","hostname":"mFi-mPower-D65475","name":"NetRelayMP","now":"2026-10-30 13:37:45","synced":1,"outlets":[{"port":1,"relay":1,"watt":0.0,"wh":0.0,"volt":227.330303192,"amp":0.0,"pf":0.0},{"port":2,"relay":0,"watt":0.0,"wh":0.0,"volt":0.0,"amp":0.0,"pf":0.0},{"port":3,"relay":1,"watt":0.0,"wh":0.0,"volt":227.666976928,"amp":0.0,"pf":0.0}]}

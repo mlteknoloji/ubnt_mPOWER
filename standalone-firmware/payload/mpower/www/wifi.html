@@ -272,7 +272,7 @@ btnConnect.onclick=async()=>{
 };
 
 stat();
-setInterval(stat,8000);
+setInterval(()=>{if(!document.hidden)stat()},8000);
 </script>
 </body>
 </html>

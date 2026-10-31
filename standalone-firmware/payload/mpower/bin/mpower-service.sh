@@ -34,6 +34,19 @@ stop_helpers() {
   sleep 1
 }
 
+is_running() {
+  ps w 2>/dev/null | grep "$1" | grep -vq grep
+}
+
+start_script() {
+  pattern=$1
+  script=$2
+  logfile=$3
+  if ! is_running "$pattern"; then
+    /bin/sh "$script" >>"$logfile" 2>&1 &
+  fi
+}
+
 case "$1" in
   stop)
     stop_helpers
@@ -45,24 +58,30 @@ esac
 
 [ -d "$WWW" ] || exit 1
 [ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" service.start
-stop_helpers
+
+# Serve the UI before schedule compilation and network initialization.
+is_running 'httpd -p 8088' || /sbin/httpd -p 8088 -h "$WWW"
+[ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" web.8088.full
 
 # Build clock rules immediately. Rebuild solar rules once asynchronous time
 # synchronization completes, so the web page is never required for schedules.
 /bin/sh "$ROOT/bin/schedule-cron.sh" >>/tmp/mpower-scheduler.log 2>&1
-(
-  /bin/sh "$ROOT/bin/time-sync.sh" >/tmp/mpower-ntp.log 2>&1
-  /bin/sh "$ROOT/bin/schedule-cron.sh" >>/tmp/mpower-scheduler.log 2>&1
-) &
-/sbin/httpd -p 8088 -h "$WWW"
-[ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" web.8088.full
+if ! is_running 'mpower/bin/time-sync.sh'; then
+  (
+    /bin/sh "$ROOT/bin/time-sync.sh" >/tmp/mpower-ntp.log 2>&1
+    /bin/sh "$ROOT/bin/schedule-cron.sh" >>/tmp/mpower-scheduler.log 2>&1
+  ) &
+fi
 [ -f $ROOT/mqtt.conf ] && grep -q '^enabled=1' $ROOT/mqtt.conf && \
-  /bin/sh $ROOT/bin/mqtt-client.sh >/tmp/mpower-mqtt.log 2>&1 &
-[ -f $ROOT/wifi.conf ] && /bin/sh $ROOT/bin/wifi-client.sh >/tmp/mpower-wifi.log 2>&1 &
-/bin/sh $ROOT/bin/watchdog.sh >/tmp/mpower-watchdog.log 2>&1 &
-pingwatch_enabled && /bin/sh $ROOT/bin/ping-watch.sh >/tmp/mpower-pingwatch.log 2>&1 &
-/bin/sh $ROOT/bin/udp-discover.sh >/tmp/mpower-udp-discover.log 2>&1 &
+  start_script 'mpower/bin/mqtt-client.sh' "$ROOT/bin/mqtt-client.sh" /tmp/mpower-mqtt.log
+# "boot": keep the link stock already made instead of reconnecting.
+if [ -f $ROOT/wifi.conf ] && ! is_running 'mpower/bin/wifi-client.sh'; then
+  /bin/sh "$ROOT/bin/wifi-client.sh" boot >>/tmp/mpower-wifi.log 2>&1 &
+fi
+start_script 'mpower/bin/watchdog.sh' "$ROOT/bin/watchdog.sh" /tmp/mpower-watchdog.log
+pingwatch_enabled && start_script 'mpower/bin/ping-watch.sh' "$ROOT/bin/ping-watch.sh" /tmp/mpower-pingwatch.log
+start_script 'mpower/bin/udp-discover.sh' "$ROOT/bin/udp-discover.sh" /tmp/mpower-udp-discover.log
 [ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" services.background.started
-# Own gpio_reset (stock wevent killed inside button-watch) so yellow-LED wipe is less likely
-/bin/sh $ROOT/bin/button-watch.sh >/tmp/mpower-button.log 2>&1 &
+# Keep the rc.prestart button owner alive; start it only when missing.
+start_script 'mpower/bin/button-watch.sh' "$ROOT/bin/button-watch.sh" /tmp/mpower-button.log
 exit 0

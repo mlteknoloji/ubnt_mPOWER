@@ -3,6 +3,9 @@
 # services are still started by rc.poststart after the stock fail-safe delay.
 ROOT=/etc/persistent/mpower
 [ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" rc.prestart
+# Own gpio_reset ASAP so a long button hold cannot stock-wipe the overlay.
+[ -x "$ROOT/bin/button-watch.sh" ] && \
+  /bin/sh "$ROOT/bin/button-watch.sh" >>/tmp/mpower-button.log 2>&1 &
 [ -x "$ROOT/bin/early-web.sh" ] && \
   /bin/sh "$ROOT/bin/early-web.sh" >/tmp/mpower-early-web.log 2>&1 &
 exit 0

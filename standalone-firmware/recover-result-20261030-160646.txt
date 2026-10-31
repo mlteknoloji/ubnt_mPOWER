@@ -1,0 +1,195 @@
+=== device-recover 192.168.1.132 10/30/2026 16:06:46
+== facts
+1.3.33
+1727
+== free before
+              total         used         free       shared      buffers
+  Mem:        29564        23184         6380            0         1016
+ Swap:            0            0            0
+Total:        29564        23184         6380
+== df
+Filesystem           1k-blocks      Used Available Use% Mounted on
+rootfs                    5888      5888         0 100% /
+/dev/root                 5888      5888         0 100% /
+tmpfs                    10240      2348      7892  23% /var
+dev                      14780         0     14780   0% /dev
+== /proc/mtd
+dev:    size   erasesize  name
+mtd0: 00040000 00010000 "u-boot"
+mtd1: 00010000 00010000 "u-boot-env"
+mtd2: 00100000 00010000 "kernel"
+mtd3: 00660000 00010000 "rootfs"
+mtd4: 00040000 00010000 "cfg"
+mtd5: 00010000 00010000 "EEPROM"
+== persistent size
+832	/etc/persistent
+4	/etc/persistent/mpower-update-status.json
+4	/etc/persistent/rc.poststart
+4	/etc/persistent/rc.prestart
+119446
+== gz bytes per persistent dir
+/etc/persistent/bin 96
+/etc/persistent/cfg 204
+/etc/persistent/data 13256
+/etc/persistent/log 96
+/etc/persistent/mpower 105215
+/etc/persistent/mpower-update-status.json 177
+/etc/persistent/rc.poststart 380
+/etc/persistent/rc.prestart 242
+== stock dirs
+/etc/persistent/bin:
+drwxr-xr-x    2 ubnt     admin          40 Jan  1  1970 .
+drwxr-xr-x    7 ubnt     admin         200 Oct 30 13:01 ..
+
+/etc/persistent/cfg:
+drwxr-xr-x    2 ubnt     admin          80 Jan  1  1970 .
+drwxr-xr-x    7 ubnt     admin         200 Oct 30 13:01 ..
+-rw-r--r--    1 ubnt     admin          21 Jan  1  1970 mgmt
+-rw-r--r--    1 ubnt     admin          63 Oct 30 13:06 vpower_cfg
+
+/etc/persistent/data:
+drwxr-xr-x    2 ubnt     admin        1660 Oct 30 13:00 .
+drwxr-xr-x    7 ubnt     admin         200 Oct 30 13:01 ..
+-rw-r--r--    1 ubnt     admin         371 Aug 11 23:00 2026-08-11
+-rw-r--r--    1 ubnt     admin         801 Aug 12 23:00 2026-08-12
+-rw-r--r--    1 ubnt     admin         840 Aug 13 23:00 2026-08-13
+-rw-r--r--    1 ubnt     admin         874 Aug 14 23:00 2026-08-14
+-rw-r--r--    1 ubnt     admin         888 Aug 15 23:00 2026-08-15
+-rw-r--r--    1 ubnt     admin         888 Aug 16 23:00 2026-08-16
+-rw-r--r--    1 ubnt     admin         888 Aug 17 23:00 2026-08-17
+-rw-r--r--    1 ubnt     admin         888 Aug 18 23:00 2026-08-18
+-rw-r--r--    1 ubnt     admin         888 Aug 19 23:00 2026-08-19
+-rw-r--r--    1 ubnt     admin         888 Aug 20 23:00 2026-08-20
+-rw-r--r--    1 ubnt     admin         888 Aug 21 23:00 2026-08-21
+-rw-r--r--    1 ubnt     admin         888 Aug 22 23:00 2026-08-22
+-rw-r--r--    1 ubnt     admin         888 Aug 23 23:00 2026-08-23
+-rw-r--r--    1 ubnt     admin         900 Aug 24 23:00 2026-08-24
+-rw-r--r--    1 ubnt     admin         912 Aug 25 23:00 2026-08-25
+-rw-r--r--    1 ubnt     admin         912 Aug 26 23:00 2026-08-26
+-rw-r--r--    1 ubnt     admin         912 Aug 27 23:00 2026-08-27
+-rw-r--r--    1 ubnt     admin         912 Aug 28 23:01 2026-08-28
+-rw-r--r--    1 ubnt     admin         912 Aug 29 23:01 2026-08-29
+-rw-r--r--    1 ubnt     admin         912 Aug 30 23:01 2026-08-30
+-rw-r--r--    1 ubnt     admin         912 Aug 31 23:01 2026-08-31
+-rw-r--r--    1 ubnt     admin           4 Aug 31 23:00 2026-08:1
+-rw-r--r--    1 ubnt     admin           5 Aug 31 23:01 2026-08:2
+-rw-r--r--    1 ubnt     admin           5 Aug 31 23:01 2026-08:3
+-rw-r--r--    1 ubnt     admin         912 Sep  1 23:00 2026-09-01
+-rw-r--r--    1 ubnt     admin         912 Sep  2 23:00 2026-09-02
+-rw-r--r--    1 ubnt     admin         912 Sep  3 23:00 2026-09-03
+-rw-r--r--    1 ubnt     admin         912 Sep  4 23:00 2026-09-04
+-rw-r--r--    1 ubnt     admin         912 Sep  5 23:00 2026-09-05
+-rw-r--r--    1 ubnt     admin         912 Sep  6 23:00 2026-09-06
+-rw-r--r--    1 ubnt     admin         912 Sep  7 23:00 2026-09-07
+-rw-r--r--    1 ubnt     admin         912 Sep  8 23:00 2026-09-08
+-rw-r--r--    1 ubnt     admin         935 Sep  9 23:00 2026-09-09
+-rw-r--r--    1 ubnt     admin         936 Sep 10 23:00 2026-09-10
+-rw-r--r--    1 ubnt     admin         936 Sep 11 23:00 2026-09-11
+-rw-r--r--    1 ubnt     admin         936 Sep 12 23:00 2026-09-12
+-rw-r--r--    1 ubnt     admin         936 Sep 13 23:00 2026-09-13
+-rw-r--r--    1 ubnt     admin         936 Sep 14 23:00 2026-09-14
+-rw-r--r--    1 ubnt     admin         936 Sep 15 23:00 2026-09-15
+-rw-r--r--    1 ubnt     admin         936 Sep 16 23:00 2026-09-16
+-rw-r--r--    1 ubnt     admin         936 Sep 17 23:00 2026-09-17
+-rw-r--r--    1 ubnt     admin         936 Sep 18 23:01 2026-09-18
+-rw-r--r--    1 ubnt     admin         936 Sep 19 23:00 2026-09-19
+-rw-r--r--    1 ubnt     admin         669 Sep 20 23:01 2026-09-20
+-rw-r--r--    1 ubnt     admin         690 Sep 21 23:01 2026-09-21
+-rw-r--r--    1 ubnt     admin         690 Sep 22 23:01 2026-09-22
+-rw-r--r--    1 ubnt     admin         720 Sep 23 23:01 2026-09-23
+-rw-r--r--    1 ubnt     admin         720 Sep 24 23:01 2026-09-24
+-rw-r--r--    1 ubnt     admin         600 Sep 25 19:01 2026-09-25
+-rw-r--r--    1 ubnt     admin         397 Sep 29 23:01 2026-09-29
+-rw-r--r--    1 ubnt     admin         764 Sep 30 23:01 2026-09-30
+-rw-r--r--    1 ubnt     admin           4 Sep 30 23:00 2026-09:1
+-rw-r--r--    1 ubnt     admin           4 Sep 30 23:01 2026-09:2
+-rw-r--r--    1 ubnt     admin           5 Sep 30 23:01 2026-09:3
+-rw-r--r--    1 ubnt     admin         792 Oct  1 23:00 2026-10-01
+-rw-r--r--    1 ubnt     admin         803 Oct  2 23:00 2026-10-02
+-rw-r--r--    1 ubnt     admin         816 Oct  3 23:00 2026-10-03
+-rw-r--r--    1 ubnt     admin         816 Oct  4 23:00 2026-10-04
+-rw-r--r--    1 ubnt     admin         816 Oct  5 23:00 2026-10-05
+-rw-r--r--    1 ubnt     admin         816 Oct  6 23:00 2026-10-06
+-rw-r--r--    1 ubnt     admin         816 Oct  7 23:00 2026-10-07
+-rw-r--r--    1 ubnt     admin         816 Oct  8 23:00 2026-10-08
+-rw-r--r--    1 ubnt     admin         830 Oct  9 23:00 2026-10-09
+-rw-r--r--    1 ubnt     admin         840 Oct 10 23:00 2026-10-10
+-rw-r--r--    1 ubnt     admin         853 Oct 11 23:00 2026-10-11
+-rw-r--r--    1 ubnt     admin         864 Oct 12 23:00 2026-10-12
+-rw-r--r--    1 ubnt     admin         878 Oct 13 23:00 2026-10-13
+== mtd errors
+== etc sizes
+drwxr-xr-x    7 ubnt     admin         200 Oct 30 13:01 .
+drwxr-xr-x   11 ubnt     admin         820 Jan  1  1970 ..
+drwxr-xr-x    2 ubnt     admin          40 Jan  1  1970 bin
+drwxr-xr-x    2 ubnt     admin          80 Jan  1  1970 cfg
+drwxr-xr-x    2 ubnt     admin        1660 Oct 30 13:00 data
+drwxr-xr-x    2 ubnt     admin          40 Jan  1  1970 log
+drwxr-xr-x    6 ubnt     admin         400 Oct 30 13:01 mpower
+-rw-r--r--    1 ubnt     admin          68 Aug 12 11:24 mpower-update-status.json
+-rwxr-xr-x    1 ubnt     admin         669 Oct 30 13:01 rc.poststart
+-rwxr-xr-x    1 ubnt     admin         329 Oct 30 13:01 rc.prestart
+4	/etc/startup.list
+4	/etc/ubnt-upnp
+4	/etc/udhcpc_services
+4	/etc/version
+8	/etc/default.cfg
+12	/etc/avahi
+12	/etc/dbus-1
+12	/etc/udhcpc
+88	/etc/sysinit
+832	/etc/persistent
+== /tmp big files
+4	/tmp/mpower-watchdog.log
+4	/tmp/mpower-wifi-result
+4	/tmp/mpower-wpa.conf
+8	/tmp/running.cfg
+8	/tmp/system.cfg
+16	/tmp/mpower-sess
+16	/tmp/sysinit.txt
+828	/tmp/mpower-pkg
+== processes
+67
+9
+== start services
+ 1125 ubnt      1980 S    /bin/pwdog -d 180 -p 10 -c 1 -m 300 -e /etc/persistent/mpower/bin/early-cron.sh 169.254.255.254 
+20573 ubnt      1980 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+20586 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+20654 ubnt      2024 S    /bin/sh /etc/persistent/mpower/bin/watchdog.sh 
+20679 ubnt      1988 S    /bin/sh /etc/persistent/mpower/bin/udp-discover.sh 
+20718 ubnt       168 S    /etc/persistent/mpower/bin/udp-beacon both 5555 /tmp/mpower-udp-peers.json 5 netRelay is here, NetRelayMP,
+22162 ubnt      1976 S    /sbin/httpd -p 8088 -h /etc/persistent/mpower/www 
+22752 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/mpower-service.sh start 
+22754 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/time-sync.sh 
+22766 ubnt      1988 S    /bin/sh /etc/persistent/mpower/bin/wifi-client.sh 
+22838 ubnt      1976 S    grep -e mpower/ -e httpd -p 80[8]8 
+22841 ubnt      1988 S    /bin/sh /etc/persistent/mpower/bin/wifi-client.sh 
+22842 ubnt      1988 R    /bin/sh /etc/persistent/mpower/bin/wifi-client.sh 
+== dmesg tail
+[ 1739.594000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[ 1742.329000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[ 1742.376000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[ 1743.530000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[ 1746.458000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[ 1746.709000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[ 1747.629000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[ 1751.249000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=2, valid=1 
+[ 1751.617000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=3, valid=0 
+[ 1752.532000]  ieee80211_ioctl_siwmode: imr.ifm_active=393344, new mode=2, valid=1 
+[ 1752.533000] ADDRCONF(NETDEV_CHANGE): ath0: link becomes ready
+[ 1753.524000]  
+[ 1753.524000]  DES SSID SET=SinAPS-IoT 
+[ 1753.524000]  ieee80211_ioctl_setmlme: os_opmode=1 
+[ 1753.524000] [ieee80211_ioctl_setmlme] set desired bssid a2:05:d6:5d:c8:66
+== measure 60s
+2026-10-30 13:08:17 label=diag secs=60 forks=488 forks/min=488 cpu_idle=19% load=8.70/8.11/6.21 memfree_kb=7396 cached_kb=7084
+ 1125 ubnt      1980 S    /bin/pwdog -d 180 -p 10 -c 1 -m 300 -e /etc/persistent/mpower/bin/early-cron.sh 169.254.255.254 
+20573 ubnt      1980 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+20586 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+20654 ubnt      2024 S    /bin/sh /etc/persistent/mpower/bin/watchdog.sh 
+20679 ubnt      1988 S    /bin/sh /etc/persistent/mpower/bin/udp-discover.sh 
+20718 ubnt       168 S    /etc/persistent/mpower/bin/udp-beacon both 5555 /tmp/mpower-udp-peers.json 5 netRelay is here, NetRelayMP,
+22162 ubnt      1976 S    /sbin/httpd -p 8088 -h /etc/persistent/mpower/www 
+22855 ubnt      1980 S    sh /etc/persistent/mpower/bin/measure.sh 60 diag 
+ssh exit=0
+status.sh: {"version":"MF.v2.1.11","overlay":"1.3.33","uptime":1815,"ssid":"SinAPS-IoT","ip":"192.168.1.132","mac":"24a43cd75475","hostname":"mFi-mPower-D65475","name":"NetRelayMP","now":"2026-10-30 13:08:18","synced":1,"outlets":[{"port":1,"relay":1,"watt":0.0,"wh":0.0,"volt":225.628945827,"amp":0.0,"pf":0.0},{"port":2,"relay":1,"watt":0.0,"wh":0.0,"volt":225.227096557,"amp":0.0,"pf":0.0},{"port":3,"relay":1,"watt":0.0,"wh":0.0,"volt":224.831165313,"amp":0.0,"pf":0.0}]}

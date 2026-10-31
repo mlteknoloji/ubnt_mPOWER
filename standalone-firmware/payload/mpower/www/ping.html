@@ -224,7 +224,7 @@ async function testPort(port){
 btnSaveAll.onclick=saveAll;
 renderRules([]);
 load();
-setInterval(()=>load(false),5000);
+setInterval(()=>{if(!document.hidden)load(false)},5000);
 </script>
 </body>
 </html>

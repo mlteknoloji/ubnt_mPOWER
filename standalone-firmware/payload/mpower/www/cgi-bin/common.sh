@@ -37,8 +37,23 @@ url_decode() {
     }'
 }
 
+# Shell-only parse (no sed fork). Only [A-Za-z0-9] values are returned, so a
+# cookie can never smuggle a path like ../ into /tmp/mpower-sess/$sid.
+cookie_val() {
+  cv=
+  case "; ${HTTP_COOKIE:-}" in
+    *"; $1="*)
+      cv="; ${HTTP_COOKIE}"
+      cv=${cv#*"; $1="}
+      cv=${cv%%;*}
+      case "$cv" in *[!A-Za-z0-9]*) cv= ;; esac
+      ;;
+  esac
+}
+
 cookie_get() {
-  printf '%s' "${HTTP_COOKIE:-}" | sed -n "s/.*\(^\|; \)$1=\([^;]*\).*/\2/p"
+  cookie_val "$1"
+  printf '%s' "$cv"
 }
 
 hash_pass() {

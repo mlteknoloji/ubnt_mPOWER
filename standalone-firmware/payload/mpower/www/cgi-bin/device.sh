@@ -1,6 +1,7 @@
 #!/bin/sh
-. "$(dirname "$0")/common.sh"
-. "$(dirname "$0")/auth.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
+. "$CGI_DIR/auth.sh"
 cfg=$MP_ROOT/device.conf
 action=$(query_get action)
 case "$action" in
@@ -18,6 +19,7 @@ case "$action" in
     require_token || exit 0
     name=$(url_decode "$(query_get name)" | tr -cd 'A-Za-z0-9 ._:-' | cut -c1-32)
     printf 'name=%s\n' "$name" > "$cfg"
+    rm -f /tmp/mpower-static.cache
     cfgmtd -w -p /etc >/dev/null 2>&1
     json_header; printf '{"ok":true,"name":"%s"}' "$name"
     ;;

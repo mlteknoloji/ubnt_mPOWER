@@ -1,0 +1,65 @@
+#!/bin/sh
+# rc.poststart - Modified for NetRelayMP standalone overlay
+# Stock path: /usr/etc/delaystart.sh → sleep 180 → this file.
+# Boot acceleration (cron/pwdog → early-cron.sh) usually starts us earlier
+# and kills that sleep; this hook remains the safe fallback.
+ROOT=/etc/persistent/mpower
+
+# ✅ FIX: Self-heal on stock factory reset (10s button press)
+# Stock Ubiquiti factory reset wipes /etc/persistent completely.
+# If overlay is missing, self-reinstall from embedded seed.
+if [ ! -d "$ROOT/bin" ] || [ ! -d "$ROOT/www" ]; then
+  echo "$(date) rc.poststart: overlay missing, checking for seed..." >> /tmp/mpower-recovery.log
+  
+  # Try to reinstall from embedded seed tar
+  if [ -f /etc/persistent/mpower-seed.tar ]; then
+    echo "$(date) rc.poststart: found seed tar, reinstalling..." >> /tmp/mpower-recovery.log
+    
+    # Extract seed to temp location
+    mkdir -p /tmp/mpower-recovery
+    tar -xf /etc/persistent/mpower-seed.tar -C /tmp/mpower-recovery 2>/dev/null
+    
+    if [ -f /tmp/mpower-recovery/install.sh ]; then
+      chmod +x /tmp/mpower-recovery/install.sh
+      /bin/sh /tmp/mpower-recovery/install.sh >> /tmp/mpower-recovery.log 2>&1
+      
+      if [ -d "$ROOT/bin" ] && [ -d "$ROOT/www" ]; then
+        echo "$(date) rc.poststart: self-heal SUCCESS" >> /tmp/mpower-recovery.log
+      else
+        echo "$(date) rc.poststart: self-heal failed" >> /tmp/mpower-recovery.log
+      fi
+    fi
+    
+    rm -rf /tmp/mpower-recovery
+  else
+    echo "$(date) rc.poststart: no seed tar found, install manually" >> /tmp/mpower-recovery.log
+    echo "⚠️  Overlay missing. Please reinstall from web UI or SSH." >> /tmp/mpower-recovery.log
+  fi
+  
+  # Don't continue - overlay not available yet
+  exit 1
+fi
+
+# ✅ FIX: Verify critical files exist after any reset
+if [ ! -f "$ROOT/bin/mpower-service.sh" ] || [ ! -f "$ROOT/www/index.html" ]; then
+  echo "$(date) rc.poststart: critical files missing, skipping startup" >> /tmp/mpower-recovery.log
+  exit 1
+fi
+
+[ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" rc.poststart
+if [ -x "$ROOT/bin/boot-mark.sh" ]; then
+  parent=$(awk '{print $4}' /proc/$$/stat 2>/dev/null)
+  pcmd=$(tr '\000' ' ' < "/proc/$parent/cmdline" 2>/dev/null)
+  "$ROOT/bin/boot-mark.sh" "rc.poststart.parent pid=$parent cmd=$pcmd"
+fi
+
+# If early-cron already started services, do not tear them down / duplicate work
+if [ -f /tmp/mpower-early-cron.done ]; then
+  [ -x "$ROOT/bin/boot-mark.sh" ] && "$ROOT/bin/boot-mark.sh" rc.poststart.skip.early
+  exit 0
+fi
+
+[ -x "$ROOT/bin/button-watch.sh" ] && \
+  /bin/sh "$ROOT/bin/button-watch.sh" >>/tmp/mpower-button.log 2>&1 &
+
+/etc/persistent/mpower/bin/mpower-service.sh start >/tmp/mpower-standalone.log 2>&1 &

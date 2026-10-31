@@ -1,0 +1,102 @@
+=== device-recover 192.168.1.132 10/30/2026 16:48:56
+== facts
+1.3.36
+4256
+== boot timeline - seconds since power-on
+62	cron.early
+62	cron.early.services
+62	service.start
+64	web.8088.full
+65	wifi.start
+65	services.background.started
+66	udp.5555.started
+76	wifi.associated
+89	wifi.ip.dhcp 192.168.1.132
+256	service.start
+258	web.8088.full
+259	wifi.start
+259	services.background.started
+259	udp.5555.started
+265	wifi.associated
+274	wifi.ip.dhcp 192.168.1.132
+425	service.start
+428	web.8088.full
+428	wifi.start
+428	services.background.started
+429	udp.5555.started
+436	wifi.associated
+438	wifi.ip.dhcp 192.168.1.132
+564	service.start
+565	web.8088.full
+566	wifi.start
+567	services.background.started
+567	udp.5555.started
+572	wifi.associated
+586	wifi.ip.dhcp 192.168.1.132
+733	service.start
+735	web.8088.full
+736	wifi.start
+736	services.background.started
+736	udp.5555.started
+745	wifi.associated
+769	wifi.ip.dhcp 192.168.1.132
+789	service.start
+789	web.8088.full
+792	services.background.started
+792	wifi.start
+802	wifi.associated
+822	wifi.ip.dhcp 192.168.1.132
+1125	service.start
+1125	web.8088.full
+1126	wifi.start
+1127	services.background.started
+1133	wifi.associated
+1137	wifi.ip.dhcp 192.168.1.132
+1516	service.start
+1519	web.8088.full
+1520	wifi.start
+1520	services.background.started
+1521	udp.5555.started
+1529	wifi.associated
+1532	wifi.ip.dhcp 192.168.1.132
+1747	service.start
+1747	web.8088.full
+1749	wifi.start
+1750	services.background.started
+1755	wifi.associated
+1768	wifi.ip.dhcp 192.168.1.132
+2313	service.start
+2314	web.8088.full
+2315	wifi.start
+2316	services.background.started
+2316	udp.5555.started
+2322	wifi.associated
+2332	wifi.ip.dhcp 192.168.1.132
+3039	service.start
+3040	web.8088.full
+3041	wifi.start
+3042	services.background.started
+3043	udp.5555.started
+3043	wifi.kept_stock_link
+3804	service.start
+3805	web.8088.full
+3807	wifi.start
+3807	services.background.started
+3807	udp.5555.started
+3809	wifi.kept_stock_link
+== pwdog in inittab
+1
+1
+== wifi result
+state=ok
+reason=linked
+detail=192.168.1.132
+ssid=SinAPS-IoT
+attempt=0
+hold=0
+ts=1793367691
+== frozen
+25446 (wevent) T
+32581 (hostapd) T
+ssh exit=0
+status.sh: {"version":"MF.v2.1.11","overlay":"1.3.36","uptime":4257,"ssid":"SinAPS-IoT","ip":"192.168.1.132","mac":"24a43cd75475","hostname":"mFi-mPower-D65475","name":"NetRelayMP","now":"2026-10-30 13:49:00","synced":1,"outlets":[{"port":1,"relay":1,"watt":0.0,"wh":0.0,"volt":227.460619926,"amp":0.0,"pf":0.0},{"port":2,"relay":1,"watt":0.0,"wh":0.0,"volt":227.026427507,"amp":0.0,"pf":0.0},{"port":3,"relay":1,"watt":0.0,"wh":0.0,"volt":226.442421913,"amp":0.0,"pf":0.0}]}

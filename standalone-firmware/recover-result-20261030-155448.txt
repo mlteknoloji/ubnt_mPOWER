@@ -1,0 +1,4 @@
+=== device-recover 192.168.1.132 10/30/2026 15:54:48
+exec request failed on channel 0
+ssh exit=255
+status.sh: {"version":"MF.v2.1.11","overlay":"1.3.32","uptime":1009,"ssid":"SinAPS-IoT","ip":"192.168.1.132","mac":"24a43cd75475","hostname":"mFi-mPower-D65475","name":"NetRelayMP","now":"2026-10-30 12:54:52","synced":1,"outlets":[{"port":1,"relay":1,"watt":0.0,"wh":0.0,"volt":226.707678794,"amp":0.0,"pf":0.0},{"port":2,"relay":1,"watt":0.0,"wh":0.0,"volt":226.296578407,"amp":0.0,"pf":0.0},{"port":3,"relay":1,"watt":0.0,"wh":0.0,"volt":225.74779129,"amp":0.0,"pf":0.0}]}

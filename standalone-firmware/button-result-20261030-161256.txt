@@ -1,0 +1,69 @@
+=== device-recover 192.168.1.132 10/30/2026 16:12:56
+== facts
+1.3.33
+2097
+== inittab
+-rw-r--r--    1 ubnt     admin        1283 Jan  1  1970 /etc/inittab
+# Executed on startup
+::sysinit:/etc/rc.d/rc.sysinit
+# Start an "askfirst" shell on the console (whatever that may be)
+ttyS0::askfirst:/sbin/getty -L ttyS0 115200 vt100
+# Stuff to do when restarting the init process
+::restart:/sbin/init
+# Run daemons
+::wait:/usr/etc/rc.d/rc start
+# Stuff to do before rebooting
+::shutdown:/etc/rc.d/rc ministop
+::shutdown:/bin/umount -a -r
+null::respawn:/bin/dropbear -F -d /var/run/dropbear_dss_host_key -r /var/run/dropbear_rsa_host_key -p 22
+null::respawn:/bin/infctld
+null::respawn:/bin/syslogd -n -O /var/log/messages -l 8 -s 200 -b 0
+null::respawn:/sbin/udhcpc -f -i ath0 -V ubnt -A 10 -s /etc/udhcpc/udhcpc -p /var/run/udhcpc.ath0.pid -h "mFi-mPower-D65475"
+null::respawn:/bin/dnsmasq -k  -C /etc/dnsmasq.br0.conf -x /var/run/dnsmasq.br0.pid
+null::respawn:/bin/pwdog -d 180 -p 10 -c 1 -m 300 -e /etc/persistent/mpower/bin/early-cron.sh 169.254.255.254
+null::respawn:/bin/lighttpd -D -f /etc/lighttpd.conf
+null::respawn:/bin/ubnt-websockets
+null::respawn:/bin/ubnt-websockets --ssl -p 7682
+null::respawn:/bin/telnetd -F -p 23
+null::respawn:/bin/hostapd /etc/aaa1.cfg
+null::respawn:/sbin/ntpclient -n -s -c 0 -l -h pool.ntp.org
+null::respawn:/bin/crond -f -S
+null::respawn:/bin/mcad
+null::respawn:/bin/mca-monitor
+null::respawn:/usr/bin/wevent
+== etc mount
+rootfs on / type rootfs (rw)
+/dev/root on / type squashfs (ro,relatime)
+tmpfs on /var type tmpfs (rw,relatime,size=10240k)
+dev on /dev type tmpfs (rw,relatime)
+== wevent binaries
+lrwxrwxrwx    1 ubnt     admin           4 Apr  6  2015 /bin/mca-monitor -> mcad
+lrwxrwxrwx    1 ubnt     admin           7 Apr  6  2015 /bin/wevent -> ubntbox
+lrwxrwxrwx    1 ubnt     admin           7 Apr  6  2015 /usr/bin/wevent -> ubntbox
+== button log
+40
+Fri Oct 30 13:12:27 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:30 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:32 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:36 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:39 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:43 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:45 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:48 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:51 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:54 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:12:57 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+Fri Oct 30 13:13:00 UTC 2026 stock wevent respawned ÔÇö stopping reset handler
+== pid churn 30s
+2098 wevent=24612 mca-monitor=24611 mcad=24027
+2103 wevent=24662 mca-monitor=24658 mcad=24027
+2109 wevent=24692 mca-monitor=24691 mcad=24027
+2115 wevent=24744 mca-monitor=24743 mcad=24713
+2121 wevent=24761 mca-monitor=24769 mcad=24713
+2126 wevent=24789 mca-monitor=24788 mcad=24713
+== parents
+24818 ppid=1
+24817 ppid=1
+24713 ppid=1
+ssh exit=0
+status.sh: {"version":"MF.v2.1.11","overlay":"1.3.33","uptime":2133,"ssid":"SinAPS-IoT","ip":"192.168.1.132","mac":"24a43cd75475","hostname":"mFi-mPower-D65475","name":"NetRelayMP","now":"2026-10-30 13:13:36","synced":1,"outlets":[{"port":1,"relay":1,"watt":0.0,"wh":0.0,"volt":226.193651676,"amp":0.0,"pf":0.0},{"port":2,"relay":1,"watt":0.0,"wh":0.0,"volt":225.819647312,"amp":0.0,"pf":0.0},{"port":3,"relay":1,"watt":0.0,"wh":0.0,"volt":225.031677246,"amp":0.0,"pf":0.0}]}

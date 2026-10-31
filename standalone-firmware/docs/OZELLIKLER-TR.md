@@ -43,7 +43,7 @@ Konum (varsayılan Çorlu) ve NTP **Ayarlar**’dadır; bugünün gün doğumu/b
 
 - **REST:** `GET /cgi-bin/status.sh` okuma · `POST /cgi-bin/action.sh?...&token=TOKEN` aç/kapa/pulse
 - **MQTT:** `mpower/mltek/{MAC}/state` okuma · `.../cmd` ile `{"action":"on","port":1}` vb.
-- REST kapalıyken token’lı dış erişim durur; panel ve MQTT çalışır
+- REST API yeni kurulumda ve fabrika sıfırlamasında **kapalı** gelir; API sayfasından açılır. Kapalıyken token’lı dış erişim durur; panel ve MQTT çalışır
 
 Ayrıntı: [MQTT-TR.md](MQTT-TR.md)
 

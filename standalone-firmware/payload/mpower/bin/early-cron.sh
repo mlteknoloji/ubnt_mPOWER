@@ -26,6 +26,10 @@ done
 
 log "delaystart interrupted — starting overlay"
 
+# Claim reset button before full services so long-hold never stock-wipes us.
+[ -x "$ROOT/bin/button-watch.sh" ] && \
+  /bin/sh "$ROOT/bin/button-watch.sh" >>/tmp/mpower-button.log 2>&1 &
+
 # Full services (httpd :8088, wifi, discovery, …)
 if [ -x "$ROOT/bin/mpower-service.sh" ]; then
   /bin/sh "$ROOT/bin/mpower-service.sh" start >/tmp/mpower-standalone.log 2>&1 &

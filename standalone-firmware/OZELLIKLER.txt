@@ -7,7 +7,7 @@
 | 1 | İlk açılış AP + WiFi tara/seç/bağlan | VAR | Setup + wifi.html |
 | 2 | IP / Subnet / GW / DNS | VAR | network.conf + network-apply |
 | 3 | Kullanıcı/şifre + oturum | VAR | admin/mltek · API token |
-| 17 | Fabrika reset (UI + buton 10sn) | VAR | soft: ayar siler, overlay kalır · stock sarı LED/:8080 overlay siler |
+| 17 | Fabrika reset (UI + buton ≥10sn) | VAR | soft: ayar siler, overlay kalır · buton ~2sn reboot · stock :8080 hâlâ silebilir |
 | 4 | REST sensör / röle | VAR | status/api/action |
 | 5 | Röle + pulse/cycle | VAR | action.sh |
 | 6 | MQTT client + cmd | VAR | mqtt-client.sh |

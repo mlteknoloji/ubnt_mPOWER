@@ -1,7 +1,8 @@
 #!/bin/sh
 # REST API v1 + enable/disable from api.html.
-. "$(dirname "$0")/common.sh"
-. "$(dirname "$0")/auth.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
+. "$CGI_DIR/auth.sh"
 
 action=$(query_get action)
 resource=$(query_get resource)
@@ -38,7 +39,7 @@ fi
 
 case "$resource" in
   ''|status)
-    exec "$(dirname "$0")/status.sh"
+    exec "$CGI_DIR/status.sh"
     ;;
   outlets)
     json_header
@@ -64,12 +65,12 @@ case "$resource" in
       wh=$(cat /proc/power/energy_sum"$port" 2>/dev/null || echo null)
       printf '{"api":"v1","id":%s,"relay":%s,"power_w":%s,"energy_wh":%s}' "$port" "$relay" "$watt" "$wh"
     else
-      QUERY_STRING="port=$port&state=$state&delay=$delay&to=$to&token=$token" exec "$(dirname "$0")/action.sh"
+      QUERY_STRING="port=$port&state=$state&delay=$delay&to=$to&token=$token" exec "$CGI_DIR/action.sh"
     fi
     ;;
   all)
-    if [ -z "$state" ]; then exec "$(dirname "$0")/status.sh"; fi
-    QUERY_STRING="port=all&state=$state&delay=$delay&token=$token" exec "$(dirname "$0")/action.sh"
+    if [ -z "$state" ]; then exec "$CGI_DIR/status.sh"; fi
+    QUERY_STRING="port=all&state=$state&delay=$delay&token=$token" exec "$CGI_DIR/action.sh"
     ;;
   *)
     json_header

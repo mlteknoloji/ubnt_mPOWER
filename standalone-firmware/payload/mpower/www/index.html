@@ -228,7 +228,8 @@ async function setAllRelays(s){
   setTimeout(load,s==='cycle'?11000:400);
 }
 function downloadCsv(){if(!last)return;let r=['port,name,relay,watt,wh,volt,amp,pf'];last.outlets.forEach(o=>r.push([o.port,'"'+label(o.port).replaceAll('"','""')+'"',o.relay,o.watt,o.wh,o.volt,o.amp,o.pf].join(',')));let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r.join('\n')],{type:'text/csv'}));a.download='mpower.csv';a.click()}
-gate(); setInterval(()=>{if(app.style.display!=='none')load()},4000);
+gate(); setInterval(()=>{if(app.style.display!=='none'&&!document.hidden)load()},5000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&app.style.display!=='none')load()});
 </script>
 </body>
 </html>

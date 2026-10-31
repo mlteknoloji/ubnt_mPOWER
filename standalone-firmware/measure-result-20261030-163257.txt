@@ -1,0 +1,63 @@
+=== device-recover 192.168.1.132 10/30/2026 16:32:57
+== facts
+1.3.35
+3297
+== settle 20s
+== top before
+Mem: 22664K used, 6900K free, 0K shrd, 596K buff, 7096K cached
+CPU:   8% usr   8% sys   0% nice  83% idle   0% io   0% irq   0% softirq
+Load average: 7.84 7.81 7.25
+  PID  PPID USER     STAT   VSZ %MEM %CPU COMMAND
+30167 30111 ubnt     R     1984   7%   8% top -b -n1 
+ 1097     2 ubnt     SW       0   0%   8% [power thread]
+ 1128     1 ubnt     S     6892  23%   0% /bin/ubnt-websockets --ssl -p 7682 
+ 1127     1 ubnt     S     6880  23%   0% /bin/ubnt-websockets 
+ 1142  1128 ubnt     S     6872  23%   0% /bin/ubnt-websockets --ssl -p 7682 
+ 1143  1127 ubnt     S     6864  23%   0% /bin/ubnt-websockets 
+ 1121     1 ubnt     S     6268  21%   0% /bin/infctld 
+25446     1 ubnt     T     6264  21%   0% /usr/bin/wevent 
+26265     1 nobody   S     5812  20%   0% avahi-daemon: running [mFi-mPower-D65
+ 1126     1 ubnt     S     5256  18%   0% /bin/lighttpd -D -f /etc/lighttpd.con
+29751     1 ubnt     S     3652  12%   0% /bin/mcad 
+25445     1 ubnt     S     3632  12%   0% /bin/mca-monitor 
+26229 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+27671 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+26234 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+26231 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+26236 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+26227 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+== measure 120s
+2026-10-30 13:35:21 label=clean secs=120 forks=308 forks/min=154 cpu_idle=57% load=8.08/7.92/7.35 memfree_kb=6908 cached_kb=7084
+ 1125 ubnt      1980 S    /bin/pwdog -d 180 -p 10 -c 1 -m 300 -e /etc/persistent/mpower/bin/early-cron.sh 169.254.255.254 
+28763 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+28773 ubnt      1984 S    /bin/sh /etc/persistent/mpower/bin/button-watch.sh 
+28836 ubnt      2024 S    /bin/sh /etc/persistent/mpower/bin/watchdog.sh 
+28858 ubnt      1988 S    /bin/sh /etc/persistent/mpower/bin/udp-discover.sh 
+28902 ubnt       168 S    /etc/persistent/mpower/bin/udp-beacon both 5555 /tmp/mpower-udp-peers.json 5 netRelay is here, NetRelayMP,
+29861 ubnt      1976 S    /sbin/httpd -p 8088 -h /etc/persistent/mpower/www 
+30172 ubnt      1980 S    sh /etc/persistent/mpower/bin/measure.sh 120 clean 
+== top after
+Mem: 23036K used, 6528K free, 0K shrd, 672K buff, 7220K cached
+CPU:  12% usr  81% sys   0% nice   0% idle   0% io   0% irq   6% softirq
+Load average: 8.72 8.05 7.40
+  PID  PPID USER     STAT   VSZ %MEM %CPU COMMAND
+30492     1 ubnt     R     3672  12%  63% /bin/hostapd /etc/aaa1.cfg 
+30493 30111 ubnt     R     1984   7%  13% top -b -n1 
+  158     2 ubnt     SW       0   0%  13% [mtdblockd]
+ 1128     1 ubnt     S     6892  23%   0% /bin/ubnt-websockets --ssl -p 7682 
+ 1127     1 ubnt     S     6880  23%   0% /bin/ubnt-websockets 
+ 1142  1128 ubnt     S     6872  23%   0% /bin/ubnt-websockets --ssl -p 7682 
+ 1143  1127 ubnt     S     6864  23%   0% /bin/ubnt-websockets 
+ 1121     1 ubnt     S     6268  21%   0% /bin/infctld 
+25446     1 ubnt     T     6264  21%   0% /usr/bin/wevent 
+26265     1 nobody   S     5824  20%   0% avahi-daemon: running [mFi-mPower-D65
+ 1126     1 ubnt     S     5256  18%   0% /bin/lighttpd -D -f /etc/lighttpd.con
+30306     1 ubnt     S     3652  12%   0% /bin/mcad 
+25445     1 ubnt     S     3632  12%   0% /bin/mca-monitor 
+26229 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+27671 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+26234 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+26236 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+26231 26226 ubnt     S     2568   9%   0% /bin/upnpd ath0 
+ssh exit=0
+status.sh: {"version":"MF.v2.1.11","overlay":"1.3.35","uptime":3441,"ssid":"SinAPS-IoT","ip":"192.168.1.132","mac":"24a43cd75475","hostname":"mFi-mPower-D65475","name":"NetRelayMP","now":"2026-10-30 13:35:24","synced":1,"outlets":[{"port":1,"relay":1,"watt":0.0,"wh":0.0,"volt":224.789126873,"amp":0.0,"pf":0.0},{"port":2,"relay":0,"watt":0.0,"wh":0.0,"volt":0.0,"amp":0.0,"pf":0.0},{"port":3,"relay":1,"watt":0.0,"wh":0.0,"volt":224.179501533,"amp":0.0,"pf":0.0}]}

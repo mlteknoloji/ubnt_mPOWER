@@ -8,7 +8,11 @@ Screenshots: [FEATURES-EN.md](FEATURES-EN.md)
 
 ![MQTT settings](../brochure/software_en_mqtt.png)
 
-Settings → MQTT: `enabled`, `host`/`port`, `user`/`pass`, `prefix` (default `mpower/mltek`), `interval`, `ha_discovery`.
+Menu → MQTT (`mqtt.html`): `enabled`, `host`/`port`, `user`/`pass`, `prefix` (default `mpower/mltek`), `interval`, `ha_discovery`.
+
+- The header pill and the menu dot show the link state: green **Online**, red **Offline** (with the reason), amber connecting.
+- The **MQTT log** card shows `/tmp/mpower-mqtt.log` on the device: connection events and errors (`ERR` in red). With **Live log** on, sent/received messages stream in every 2 s.
+- Relay changes (panel, MQTT, schedule, ping, button) are published on `relay/N` within ~0.5 s; `interval` only paces measurements.
 
 Root: `{prefix}/{MAC}/` (default: `mpower/mltek/{MAC}/`; lowercase MAC, no colons).
 

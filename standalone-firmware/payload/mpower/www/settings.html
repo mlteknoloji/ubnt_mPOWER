@@ -4,7 +4,7 @@
 <div class="topbar">
   <div style="display:flex;gap:10px;align-items:flex-start">
     <button class="menu-btn" id="menuBtn">☰</button>
-    <div><h2 data-i18n="setTitle">Ayarlar</h2><div class="sub" data-i18n="setSub">Cihaz, MQTT, saat, firmware</div></div>
+    <div><h2 data-i18n="setTitle">Ayarlar</h2><div class="sub" data-i18n="setSub">Cihaz, saat, firmware</div></div>
   </div>
   <a class="quiet" href="/" style="padding:10px 14px;border-radius:10px;background:#243352;color:#fff" data-i18n="panel">Panel</a>
 </div>
@@ -42,24 +42,15 @@
   <button class=cycle onclick="setBrowserTime()" data-i18n="setBrowserTime">Tarayıcı saatini yaz</button>
  </div>
  <p id=lnote class=note></p>
-</section>
-
-<section class="card">
- <h3 data-i18n="mqttHa">MQTT / Home Assistant</h3>
- <label class="tog"><input type=checkbox id=en><span class="tog-track"></span><span class="tog-text" data-i18n="mqttOn">MQTT açık</span></label>
- <label data-i18n="broker">Broker</label><input id=host data-i18n-placeholder="mqttHostPh" placeholder="mqtt.example.com" autocomplete="off">
- <label data-i18n="port">Port</label><input id=port data-i18n-placeholder="mqttPortPh" placeholder="1883" inputmode="numeric" autocomplete="off">
- <label data-i18n="mqttUser">Kullanıcı</label><input id=user data-i18n-placeholder="mqttUserPh" placeholder="mqtt" autocomplete="username">
- <label data-i18n="password">Parola</label><input id=pass type=password data-i18n-placeholder="mqttPassPh" placeholder="(boş=değişmez)" autocomplete="current-password">
- <label data-i18n="prefix">Prefix</label><input id=prefix data-i18n-placeholder="mqttPrefixPh" placeholder="mpower/mltek" autocomplete="off">
- <label data-i18n="intervalSec">Aralık (sn)</label><input id=interval data-i18n-placeholder="mqttIntervalPh" placeholder="15" inputmode="numeric">
- <label data-i18n="mqttCustom">Custom</label>
- <input id=custom data-i18n-placeholder="mqttCustomPh" placeholder="site=warehouse" autocomplete="off" maxlength=240>
- <p class="note" data-i18n="mqttCustomHint">Broker’a {prefix}/{MAC}/custom ve state JSON içinde custom olarak gider.</p>
- <label class="tog"><input type=checkbox id=ha><span class="tog-track"></span><span class="tog-text" data-i18n="haDiscovery">HA discovery</span></label>
- <button id=mqttSaveBtn onclick="mqtt()" data-i18n="mqttSave">MQTT kaydet</button>
- <div id=mnote class="fw-result" role=status aria-live=polite></div>
- <pre class="code" id=mqttHelp></pre>
+ <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+ <h3 data-i18n="sunTitle">Gün doğumu / batımı</h3>
+ <p class="note" data-i18n="sunHint">Yukarıdaki koordinat ve UTC ofsete göre (kaydetmeden önizleme). Kurallar kayıtlı konumu kullanır.</p>
+ <div class="sun-row">
+  <div><label data-i18n="sunDate">Tarih</label><input id=sunDate type=date></div>
+  <div><label data-i18n="sunDays">Gün sayısı</label><select id=sunDays><option>1</option><option selected>7</option><option>14</option></select></div>
+ </div>
+ <button class=quiet onclick="loadSun()" data-i18n="sunCalc">Hesapla</button>
+ <table class="sun-tbl" id=sunTbl></table>
 </section>
 
 <section class="card">
@@ -84,9 +75,8 @@
 <section class="card">
  <h3 data-i18n="device">Cihaz</h3>
  <p class="note" data-i18n-html="deviceNote">Yeniden başlat: ayarlar korunur.<br>
- NetRelayMP fabrika yalnız bu sayfadaki düğmeden yapılır: Wi‑Fi, MQTT, ağ, zamanlama, parola (<b>admin / mltek</b>) ve API token sıfırlanır; <b>overlay kalır</b>.<br>
- Dikkat: Fiziksel düğmeye uzun basmak stock fabrika sıfırlamasını başlatır ve yazılımı siler.<br>
- Fiziksel düğme: yalnız <b>2 sn</b> = yeniden başlat; daha uzun basmayın.</p>
+ NetRelayMP fabrika: bu sayfadaki düğme veya fiziksel düğme <b>~10 sn</b> — Wi‑Fi, MQTT, ağ, zamanlama, parola (<b>admin / mltek</b>) ve API token sıfırlanır; <b>yazılım kalır</b>; stok mFi (8080) ayarlarına dokunulmaz.<br>
+ Fiziksel düğme <b>~2 sn</b>: yalnız yeniden başlatır.</p>
  <div class="toolbar">
   <button class="cycle" onclick="deviceReboot()" data-i18n="reboot">Yeniden başlat</button>
   <button class="off" onclick="factoryReset()" data-i18n="factory">Fabrika ayarlarına dön</button>
@@ -119,7 +109,7 @@ async function factoryReset(){
     rnote.textContent=JSON.stringify(await (await fetch('/cgi-bin/reset.sh?'+p,{method:'POST',credentials:'same-origin'})).json());
   }catch(e){rnote.textContent=t('deviceRestarting')}
 }
-async function loadDev(){const x=await fetch('/cgi-bin/device.sh?action=get').then(r=>r.json());dname.value=x.name||'';ledEn.checked=x.led_enabled!=0;dmeta.textContent=`hostname ${x.hostname||'-'} · mac ${x.mac||'-'}`;updateMqttHelp(x.mac)}
+async function loadDev(){const x=await fetch('/cgi-bin/device.sh?action=get').then(r=>r.json());dname.value=x.name||'';ledEn.checked=x.led_enabled!=0;dmeta.textContent=`hostname ${x.hostname||'-'} · mac ${x.mac||'-'}`}
 async function saveName(){const p=new URLSearchParams({action:'set',name:dname.value});await post('/cgi-bin/device.sh?'+p);loadDev()}
 async function saveLed(){const p=new URLSearchParams({action:'led',enabled:ledEn.checked?1:0});const x=await post('/cgi-bin/device.sh?'+p);ledNote.textContent=x.ok?t('ledSaved'):JSON.stringify(x)}
 async function loadLoc(){
@@ -135,7 +125,59 @@ async function loadLoc(){
   hint+=x.net_ok?t('netRouteYes'):t('netRouteNo');
   netHint.textContent=hint;
 }
-async function loc(){const p=new URLSearchParams({action:'set',lat:lat.value,lon:lon.value,tz:tz.value,ntp:ntp.value});lnote.textContent=JSON.stringify(await post('/cgi-bin/location.sh?'+p));loadLoc()}
+// Sunrise/sunset table from the device's sun.awk (same math as the rules).
+let sunTimer=null;
+function sunSoon(){clearTimeout(sunTimer);sunTimer=setTimeout(loadSun,500)}
+async function loadSun(){
+  const v=sunDate.value; if(!v) return;
+  const le=locError(); if(le&&le.code!=='ntp_invalid'){sunTbl.innerHTML=`<tr><td colspan=4>\u2715 ${locErrText(le.code)}</td></tr>`;return}
+  const [y,m,d]=v.split('-');
+  const p=new URLSearchParams({action:'sun',lat:lat.value.trim(),lon:lon.value.trim(),tz:String(tz.value).trim().replace(/^\+/,''),year:y,month:m,day:d,days:sunDays.value});
+  try{
+    const x=await fetch('/cgi-bin/location.sh?'+p,{cache:'no-store'}).then(r=>r.json());
+    if(!x.ok){sunTbl.innerHTML=`<tr><td colspan=4>\u2715 ${locErrText(x.error||'sunBad')}</td></tr>`;return}
+    const wd=new Intl.DateTimeFormat(lang()==='en'?'en-GB':'tr-TR',{weekday:'short'});
+    const n=new Date(), today=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+    sunTbl.innerHTML=`<tr><th>${t('sunDate')}</th><th>${t('kindRise')}</th><th>${t('kindSet')}</th><th>${t('sunLen')}</th></tr>`+
+      x.days.map(r=>{const dd=new Date(r.date+'T12:00:00');return `<tr${r.date===today?' class=today':''}><td>${r.date.slice(8)}.${r.date.slice(5,7)}.${r.date.slice(0,4)} <span class=muted>${wd.format(dd)}</span></td><td><b>${r.sunrise}</b></td><td><b>${r.sunset}</b></td><td>${r.length}</td></tr>`}).join('');
+  }catch(e){sunTbl.innerHTML=`<tr><td colspan=4>\u2715 ${e.message||e}</td></tr>`}
+}
+// Location checks (same rules as cgi-bin/location.sh).
+function coordOk(v,max){
+  if(!/^-?\d{1,3}(\.\d{1,6})?$/.test(v)) return false;
+  return Math.abs(parseFloat(v))<=max;
+}
+function locError(){
+  const v=e=>e.value.trim();
+  if(!coordOk(v(lat),90)) return {el:lat,code:'lat_invalid'};
+  if(!coordOk(v(lon),180)) return {el:lon,code:'lon_invalid'};
+  const z=v(tz); if(!/^[+-]?\d{1,2}$/.test(z)||+z<-12||+z>14) return {el:tz,code:'tz_invalid'};
+  const n=v(ntp); if(!/^[A-Za-z0-9][A-Za-z0-9.-]{0,63}$/.test(n)||n.includes('..')) return {el:ntp,code:'ntp_invalid'};
+  return null;
+}
+function locErrText(c){const s=t('locErr_'+c);return s.startsWith('locErr_')?c:s}
+function locLive(){
+  [lat,lon,tz,ntp].forEach(f=>{f.classList.remove('bad');document.getElementById(f.id+'Err').textContent=''});
+  const e=locError();
+  if(e&&e.el.value.trim()){e.el.classList.add('bad');document.getElementById(e.el.id+'Err').textContent=locErrText(e.code)}
+  return !e;
+}
+[lat,lon,tz,ntp].forEach(f=>{
+  f.insertAdjacentHTML('afterend',`<div class="field-err" id="${f.id}Err" aria-live="polite"></div>`);
+  f.addEventListener('input',()=>{
+    // Turkish keyboards type a decimal comma: accept it as a dot.
+    if((f===lat||f===lon)&&f.value.includes(',')) f.value=f.value.replace(/,/g,'.');
+    locLive();
+  });
+});
+async function loc(){
+  [lat,lon,tz,ntp].forEach(f=>f.value=f.value.trim());
+  const e=locError();
+  if(e){locLive();lnote.textContent='✕ '+locErrText(e.code);e.el.focus();return}
+  const p=new URLSearchParams({action:'set',lat:lat.value,lon:lon.value,tz:tz.value.replace(/^\+/,''),ntp:ntp.value});
+  try{await post('/cgi-bin/location.sh?'+p);lnote.textContent='✓ '+t('saved');loadLoc()}
+  catch(err){lnote.textContent='✕ '+locErrText(err.message||String(err))}
+}
 async function sync(){lnote.textContent=t('tryingNtp');lnote.textContent=JSON.stringify(await post('/cgi-bin/location.sh?action=sync'));loadLoc()}
 async function setBrowserTime(){
   const d=new Date();
@@ -144,91 +186,6 @@ async function setBrowserTime(){
   const p=new URLSearchParams({action:'set_browser',stamp:stamp,epoch:Math.floor(d.getTime()/1000)});
   lnote.textContent=JSON.stringify(await post('/cgi-bin/location.sh?'+p));
   loadLoc();
-}
-let mqttDeviceMac='MAC';
-function updateMqttHelp(mac){
-  if(mac)mqttDeviceMac=mac;
-  const id=mqttDeviceMac;
-  const root=(prefix.value||'mpower/mltek').replace(/^\/+|\/+$/g,'');
-  const head=lang()==='en'?'Telemetry (JSON):':'Telemetri (JSON):';
-  const cmds=lang()==='en'?'Commands:':'Komutlar:';
-  const ha=lang()==='en'?'HA compatible:':'HA uyumlu:';
-  mqttHelp.textContent=`${head}\n  ${root}/${id}/state          (custom field included)\n  ${root}/${id}/custom         retain\n  ${root}/${id}/outlet/1/json\n\n${cmds}\n  ${root}/${id}/cmd\n  {"action":"on","port":1}\n  {"action":"off","port":2}\n  {"action":"pulse","port":1,"delay":10,"to":1}\n  {"action":"cycle","port":"all","delay":10}\n  {"action":"update","url":"http://pc/pkg.tar"}\n\n${ha}\n  ${root}/${id}/relay/1/set  => ON|OFF`;
-}
-async function loadMqtt(){
-  const x=await fetch('/cgi-bin/mqttcfg.sh?action=get').then(r=>r.json());
-  en.checked=x.enabled==1;
-  host.value=x.host||'';
-  port.value=x.port||'';
-  user.value=x.user||'';
-  prefix.value=x.prefix||'mpower/mltek';
-  interval.value=x.interval||'15';
-  custom.value=x.custom||'';
-  ha.checked=x.ha_discovery!=0;
-  updateMqttHelp();
-}
-prefix.addEventListener('input',()=>updateMqttHelp());
-async function mqtt(){
-  if(!ensure())return;
-  const p=new URLSearchParams({
-    action:'set',
-    enabled:en.checked?1:0,
-    host:host.value,
-    port:port.value||'1883',
-    user:user.value,
-    pass:pass.value,
-    prefix:prefix.value||'mpower/mltek',
-    interval:interval.value||'15',
-    ha_discovery:ha.checked?1:0,
-    custom:custom.value||''
-  });
-  mqttMessage(t('mqttSaving'),null,true);
-  mqttSaveBtn.disabled=true;
-  try{
-    const x=await post('/cgi-bin/mqttcfg.sh?'+p);
-    if(x.ok){
-      pass.value='';
-      if(en.checked){
-        mqttMessage(t('mqttConnecting'),null,true);
-        await waitMqttConnection();
-      }else{
-        mqttMessage('\u2713 '+t('mqttSaved'),true);
-      }
-    }else{
-      mqttMessage('\u2715 '+t('mqttSaveFailed')+': '+(x.error||t('error')),false);
-    }
-  }catch(e){
-    mqttMessage('\u2715 '+t('mqttSaveFailed')+': '+(e.message||e),false);
-  }finally{
-    mqttSaveBtn.disabled=false;
-  }
-}
-async function waitMqttConnection(){
-  const end=Date.now()+15000;
-  while(Date.now()<end){
-    await new Promise(r=>setTimeout(r,1000));
-    try{
-      const x=await fetch('/cgi-bin/mqttcfg.sh?action=status&_='+Date.now(),{cache:'no-store'}).then(r=>r.json());
-      if(x.state==='connected'){
-        mqttMessage('\u2713 '+t('mqttConnected'),true);
-        return;
-      }
-      if(x.state==='failed'){
-        const key={1:'mqttProtocol',2:'mqttClientId',3:'mqttUnavailable',4:'mqttCredentials',5:'mqttUnauthorized'}[x.code];
-        mqttMessage('\u2715 '+t('mqttConnectFailed')+': '+t(key||'mqttConnectionClosed'),false);
-        return;
-      }
-      if(x.state==='disconnected'){
-        mqttMessage('\u2715 '+t('mqttConnectFailed')+': '+t('mqttConnectionClosed'),false);
-        return;
-      }
-    }catch(e){}
-  }
-  mqttMessage('\u2715 '+t('mqttConnectFailed')+': '+t('mqttConnectTimeout'),false);
-}
-function mqttMessage(text,ok,busy=false){
-  mnote.textContent=text;
-  mnote.className='fw-result show '+(ok===true?'success':ok===false?'failed':busy?'busy':'info');
 }
 function fwMessage(text,ok,busy=false){
   fnote.textContent=text;
@@ -294,5 +251,8 @@ async function updUrl(){
     }catch(e2){fwMessage(t('fwFailed')+': '+(e.message||e),false)}
   }
 }
-loadDev();loadLoc();loadMqtt();
+(()=>{const n=new Date();sunDate.value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`})();
+[sunDate,sunDays].forEach(e=>e.addEventListener('change',loadSun));
+[lat,lon,tz].forEach(e=>e.addEventListener('input',sunSoon));
+loadDev();loadLoc().then(loadSun);
 </script></body></html>

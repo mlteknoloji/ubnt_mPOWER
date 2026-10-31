@@ -1,7 +1,8 @@
 #!/bin/sh
 # Backup / restore NetRelayMP settings for fleet clone.
-. "$(dirname "$0")/common.sh"
-. "$(dirname "$0")/auth.sh"
+case "$0" in */*) CGI_DIR=${0%/*} ;; *) CGI_DIR=. ;; esac
+. "$CGI_DIR/common.sh"
+. "$CGI_DIR/auth.sh"
 action=$(query_get action)
 [ -z "$action" ] && action=export
 
@@ -171,6 +172,7 @@ case "$action" in
     # device name optional
     dname=$(printf '%s' "$body" | sed -n 's/.*"device_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'|head -1)
     [ -n "$dname" ] && printf 'name=%s\n' "$dname" > $MP_ROOT/device.conf
+    rm -f /tmp/mpower-static.cache
     cfgmtd -w -p /etc >/dev/null 2>&1
     # restart helpers
     [ -f $MP_ROOT/wifi.conf ] && /bin/sh $MP_ROOT/bin/wifi-client.sh >/tmp/mpower-wifi.log 2>&1 &
